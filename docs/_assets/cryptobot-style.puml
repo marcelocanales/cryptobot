@@ -1,0 +1,46 @@
+' ============================================================
+'  Estilo Cryptobot — paleta y tipografía común para los diagramas
+'  Fuente única del estilo. Uso: COPIAR este bloque (o la parte
+'  relevante) justo después de @startuml en cada diagrama.
+'  Nota: el Kroki local corre con KROKI_SAFE_MODE=secure, que
+'  bloquea !include — por eso se copia y no se incluye.
+' ============================================================
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "FreeSans"
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #B7791F
+
+' --- Secuencia ---
+skinparam ParticipantBackgroundColor #B7791F
+skinparam ParticipantFontColor #FFFFFF
+skinparam ParticipantBorderColor #7A5310
+skinparam ActorBackgroundColor #FFF3D6
+skinparam ActorBorderColor #B7791F
+skinparam SequenceLifeLineBorderColor #E8D9BE
+
+' --- Rectángulos / componentes ---
+skinparam rectangle {
+  BackgroundColor #FBF3E7
+  BorderColor #B7791F
+  FontColor #4A3403
+}
+
+' --- Actividad / flujos ---
+skinparam activity {
+  BackgroundColor #FBF3E7
+  BorderColor #B7791F
+  FontColor #4A3403
+  DiamondBackgroundColor #FFF3D6
+  DiamondBorderColor #B7791F
+  DiamondFontColor #4A3403
+  StartColor #B7791F
+  EndColor #7A5310
+  BarColor #B7791F
+}
+
+' --- Notas ---
+skinparam note {
+  BackgroundColor #FFF8E1
+  BorderColor #FFD54F
+}
