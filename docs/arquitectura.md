@@ -2,7 +2,15 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0017, cerrado)
+## Qué existe hoy (Sprint 0018, cerrado)
+
+Hipótesis 02 (triangular intra-exchange) suma **YoBit**, hasta ahora solo probada en Poloniex. Antes de construir se midió en vivo (contra `TriangleFinder` real, sin escribir código nuevo): 340 triángulos anclados en USDT (393 order books únicos) vs. 7.520 anclados en BTC y 7.516 en ETH — se construyó **solo el ancla USDT**; BTC/ETH queda backlog explícito, no descartado (ver Decisiones en `sprint_0018.md`, motivado por el hallazgo del Sprint 0011: incluso el par más líquido de Poloniex, ETH/BTC, pasa ~91% del tiempo congelado).
+
+- `ExchangeConnector` gana `fetchMarkets()` como método de interfaz (los 4 connectors ya lo implementaban con firma idéntica desde antes — declaración mecánica, cero lógica nueva). Habilita que código genérico reciba cualquier connector y liste sus mercados sin conocer el tipo concreto.
+- `TriangleCheckRunner` (en `com.cryptobot`) y `TriangleWatchRunner` (en `com.cryptobot.watch`): la orquestación de `TriangleCheck`/`TriangleWatcher` (antes con Poloniex cableado adentro) se extrae a métodos parametrizados por `(ExchangeConnector, exchangeName, anchor[, outputFilePrefix])`. `TriangleCheck`/`TriangleWatcher` quedan como mains delgados que llaman al runner con Poloniex — mismo comportamiento, mismo CSV, verificado en vivo que el output no cambió. `YobitTriangleCheck`/`YobitTriangleWatcher` son los mains nuevos, mismos runners con YoBit.
+- Verificado en vivo: 43 de 393 books (~11%) fallan con "sin bids/asks esperados" — mismo patrón de mercados sin liquidez del lado bid que ya apareció en el Sprint 0017 (`comp_btc`/`shib_btc`), acá a mayor escala por ser YoBit el exchange con más pares. Todos capturados como error por `ParallelFetch`, ninguno interrumpe la corrida. 0 de 680 direcciones con neto positivo — sin señal todavía en YoBit tampoco.
+
+## Qué existía en el Sprint 0017
 
 `TrackedAssets.all(...)` (hipótesis 01, usada por `SpreadWatcher`/`OverlapCheck`) dejó de devolver una lista fija de 11 activos elegidos a mano — ahora **descubre** en vivo qué activos cotizan en 2 o más de los 4 exchanges, mismo principio ya aplicado a lo triangular (`TriangleFinder`/`CrossTriangleFinder`, Sprint 0009/0012):
 - `BudaConnector`/`YobitConnector` ganan `fetchMarkets()` (mismo patrón que `PoloniexConnector`/`NotBankConnector`) — Buda vía `GET /markets` (filtra `disabled`), YoBit vía `GET /info` (filtra `hidden`, symbol = la propia key del par, confirmado en el Sprint 0007 que separar por `_` es seguro).

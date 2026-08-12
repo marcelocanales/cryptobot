@@ -19,6 +19,11 @@ class CrossTriangleFinderTest {
         public OrderBook fetchOrderBook(String symbol) {
             throw new UnsupportedOperationException("no hace falta para este test");
         }
+
+        @Override
+        public List<Market> fetchMarkets() {
+            throw new UnsupportedOperationException("no hace falta para este test");
+        }
     }
 
     private static final FakeConnector EXCHANGE_1 = new FakeConnector("Exchange1");
