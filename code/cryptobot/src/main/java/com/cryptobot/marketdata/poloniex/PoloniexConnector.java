@@ -4,6 +4,7 @@ import com.cryptobot.marketdata.ExchangeApiException;
 import com.cryptobot.marketdata.ExchangeConnector;
 import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.PerpQuote;
 import com.cryptobot.marketdata.PriceLevel;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +30,7 @@ import java.util.List;
 public class PoloniexConnector implements ExchangeConnector {
 
     private static final String BASE_URL = "https://api.poloniex.com";
+    private static final String FUTURES_BASE_URL = "https://api.poloniex.com/v3";
     private static final int DEFAULT_DEPTH = 20;
 
     private final HttpClient httpClient;
@@ -101,6 +103,105 @@ public class PoloniexConnector implements ExchangeConnector {
         }
 
         return parseMarkets(response.body());
+    }
+
+    /**
+     * Lista los símbolos de perpetuos activos (Sprint 0015) — descubiertos
+     * contra {@code GET /v3/market/tickers}, no hardcodeados. Todos los
+     * perpetuos de Poloniex son {@code {BASE}_USDT_PERP}.
+     */
+    public List<String> fetchPerpSymbols() {
+        String body = fetchBody(FUTURES_BASE_URL + "/market/tickers", "listar perpetuos");
+        return parsePerpSymbols(body);
+    }
+
+    /**
+     * Combina precio (mark, mejor bid/ask) y funding rate actual de un
+     * perpetuo — dos llamadas reales, {@code /v3/market/tickers} y
+     * {@code /v3/market/fundingRate}, ninguna documentada como "la misma
+     * cosa" en la API, hay que pedirlas por separado.
+     */
+    public PerpQuote fetchPerpQuote(String symbol) {
+        String tickerBody = fetchBody(FUTURES_BASE_URL + "/market/tickers?symbol=" + symbol, "ticker de " + symbol);
+        String fundingBody = fetchBody(FUTURES_BASE_URL + "/market/fundingRate?symbol=" + symbol,
+            "funding rate de " + symbol);
+        return parsePerpQuote(symbol, tickerBody, fundingBody);
+    }
+
+    private String fetchBody(String url, String context) {
+        var request = HttpRequest.newBuilder(URI.create(url))
+            .timeout(Duration.ofSeconds(10))
+            .GET()
+            .build();
+
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new ExchangeApiException("No se pudo conectar a Poloniex (" + context + ")", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ExchangeApiException("Consulta a Poloniex interrumpida (" + context + ")", e);
+        }
+
+        if (response.statusCode() != 200) {
+            throw new ExchangeApiException(
+                "Poloniex respondió " + response.statusCode() + " (" + context + "): " + response.body());
+        }
+        return response.body();
+    }
+
+    // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
+    List<String> parsePerpSymbols(String json) {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(json);
+        } catch (IOException e) {
+            throw new ExchangeApiException("Respuesta de Poloniex no es JSON válido para tickers de futuros: " + json, e);
+        }
+        JsonNode data = root.get("data");
+        if (data == null || !data.isArray()) {
+            throw new ExchangeApiException("Respuesta de Poloniex sin data esperada para tickers de futuros: " + json);
+        }
+        List<String> symbols = new ArrayList<>();
+        for (JsonNode ticker : data) {
+            String symbol = ticker.get("s").asText();
+            if (symbol.endsWith("_USDT_PERP")) {
+                symbols.add(symbol);
+            }
+        }
+        return symbols;
+    }
+
+    // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
+    PerpQuote parsePerpQuote(String symbol, String tickerJson, String fundingJson) {
+        JsonNode tickerRoot;
+        JsonNode fundingRoot;
+        try {
+            tickerRoot = objectMapper.readTree(tickerJson);
+            fundingRoot = objectMapper.readTree(fundingJson);
+        } catch (IOException e) {
+            throw new ExchangeApiException("Respuesta de Poloniex no es JSON válido para el perpetuo " + symbol, e);
+        }
+
+        JsonNode tickerData = tickerRoot.path("data");
+        if (!tickerData.isArray() || tickerData.isEmpty()) {
+            throw new ExchangeApiException(
+                "Respuesta de Poloniex sin ticker para el perpetuo " + symbol + ": " + tickerJson);
+        }
+        JsonNode ticker = tickerData.get(0);
+        JsonNode funding = fundingRoot.path("data");
+
+        BigDecimal markPrice = new BigDecimal(ticker.get("mPx").asText());
+        PriceLevel bestBid = new PriceLevel(
+            new BigDecimal(ticker.get("bPx").asText()), new BigDecimal(ticker.get("bSz").asText()));
+        PriceLevel bestAsk = new PriceLevel(
+            new BigDecimal(ticker.get("aPx").asText()), new BigDecimal(ticker.get("aSz").asText()));
+        BigDecimal fundingRatePct = new BigDecimal(funding.get("fR").asText()).multiply(BigDecimal.valueOf(100));
+        Instant fundingTime = Instant.ofEpochMilli(funding.get("fT").asLong());
+        Instant nextFundingTime = Instant.ofEpochMilli(funding.get("nFT").asLong());
+
+        return new PerpQuote(symbol, markPrice, bestBid, bestAsk, fundingRatePct, fundingTime, nextFundingTime);
     }
 
     // package-private, no private: testeado directo con JSON real, sin mockear HTTP.

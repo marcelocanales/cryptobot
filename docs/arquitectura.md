@@ -2,7 +2,17 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0014, cerrado)
+## Qué existe hoy (Sprint 0015, cerrado)
+
+Primer código para la **hipótesis 04 (funding rate cash-and-carry)** — distinta en naturaleza a las 3 anteriores: no arbitraje instantáneo, sino una posición que se mantiene abierta cobrando el funding rate. Solo Poloniex, de los 4 exchanges conectados, tiene perpetuos (confirmado en vivo: NotBank 0 instrumentos no-spot, Buda y YoBit solo spot).
+
+- `PerpQuote` (en `marketdata`): precio (mark/bid/ask) y funding rate de un perpetuo, con el intervalo real derivado de las horas de funding actual/siguiente (no asumido — verificado en 8h exactas contra la API real).
+- `PoloniexConnector` gana `fetchPerpSymbols()` (descubre los perpetuos reales vía `GET /v3/market/tickers`, filtra por sufijo `_USDT_PERP`) y `fetchPerpQuote(symbol)` (combina el ticker con `GET /v3/market/fundingRate`).
+- `ExchangeFees` gana `perpTakerFee(exchange)`, separada de `takerFee` (spot) — hoy solo tiene valor para Poloniex (0,075%), y esa fee **no** sale de una API pública (Poloniex no expone una) sino de contenido de soporte del propio exchange — anotado como supuesto a confirmar en el backlog, mismo tratamiento que tuvo la fee de NotBank antes del Sprint 0008.
+- `com.cryptobot.funding.CashAndCarrySpread`: a diferencia de `NetSpread`/`TriangleSpread`/`CrossTriangleSpread` (arbitraje instantáneo, un solo "neto"), acá no hay un solo número — se reporta basis, funding por período, funding anualizado, fees de entrada y períodos de breakeven por separado. Elige el spot de mejor costo neto entre Poloniex y NotBank (mismo principio de "mejor por pata" que `CrossTriangleSpread`, simplificado porque acá la pata spot siempre es "comprar").
+- `CashAndCarryCheck` (en `com.cryptobot`): foto en vivo, usa `ParallelFetch` desde el diseño inicial (no como parche posterior).
+
+## Qué existía en el Sprint 0014
 
 `com.cryptobot.marketdata.ParallelFetch` — todos los watchers y checks pedían sus order books uno a la vez, en un `for` secuencial. Con `CrossTriangleWatcher` (168 books) el costo se hizo visible: el primer ciclo no llegaba a completarse ni en 2 minutos. `ParallelFetch.fetchAll(List<FetchTask<K,V>>)` corre las tareas con **virtual threads** (JDK 21) — cada conector sigue exactamente igual (`HttpClient.send()`, bloqueante), la concurrencia se agrega solo en la capa que ya tenía el `for` de fetches. Sin límite entre exchanges distintos (rate limits independientes); acotado dentro de un mismo exchange con un `Semaphore` (`MAX_CONCURRENT_PER_EXCHANGE = 8`, supuesto conservador, no un dato medido — ver backlog). Un fetch que falla cae en `Outcome.errors()` sin cancelar a los demás.
 

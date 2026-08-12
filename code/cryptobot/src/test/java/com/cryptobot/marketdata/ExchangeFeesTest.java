@@ -29,4 +29,10 @@ class ExchangeFeesTest {
     void unknownExchangeIsAnError() {
         assertThrows(IllegalArgumentException.class, () -> ExchangeFees.takerFee("Binance", "USDT"));
     }
+
+    @Test
+    void perpFeeOnlyKnownForPoloniex() {
+        assertEquals(new BigDecimal("0.00075"), ExchangeFees.perpTakerFee("Poloniex"));
+        assertThrows(IllegalArgumentException.class, () -> ExchangeFees.perpTakerFee("NotBank"));
+    }
 }

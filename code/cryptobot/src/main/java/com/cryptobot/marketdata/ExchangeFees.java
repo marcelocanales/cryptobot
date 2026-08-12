@@ -31,6 +31,18 @@ public final class ExchangeFees {
     private static final BigDecimal NOTBANK_CRYPTO_CRYPTO_TAKER = new BigDecimal("0.0014");
     private static final Set<String> FIAT_LIKE_QUOTES = Set.of("USDT", "USDC", "CLP", "COP", "PEN");
 
+    // Fee de taker de PERPETUOS — mercado distinto al spot, con su propia fee
+    // incluso en el mismo exchange (Sprint 0015). Hoy solo Poloniex tiene
+    // perpetuos entre los 4 exchanges conectados (confirmado en vivo: NotBank
+    // 0 instrumentos no-spot, Buda y YoBit solo spot). A diferencia de las
+    // fees de spot, esta no sale de una API pública de Poloniex — no expone
+    // un endpoint de fees de futuros — sale de contenido de soporte/anuncios
+    // del propio exchange. Pendiente confirmar contra una fuente más dura si
+    // aparece — ver docs/entorno.md.
+    private static final Map<String, BigDecimal> PERP_TAKER_FEE = Map.of(
+        "Poloniex", new BigDecimal("0.00075")
+    );
+
     private ExchangeFees() {
     }
 
@@ -45,6 +57,14 @@ public final class ExchangeFees {
         BigDecimal fee = FLAT_TAKER_FEE.get(exchangeName);
         if (fee == null) {
             throw new IllegalArgumentException("Sin fee de taker conocida para " + exchangeName);
+        }
+        return fee;
+    }
+
+    public static BigDecimal perpTakerFee(String exchangeName) {
+        BigDecimal fee = PERP_TAKER_FEE.get(exchangeName);
+        if (fee == null) {
+            throw new IllegalArgumentException(exchangeName + " no tiene perpetuos conectados");
         }
         return fee;
     }
