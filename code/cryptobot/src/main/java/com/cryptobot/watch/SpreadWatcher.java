@@ -131,20 +131,20 @@ public class SpreadWatcher {
             for (int j = i + 1; j < quotes.size(); j++) {
                 VenueQuote a = quotes.get(i);
                 VenueQuote b = quotes.get(j);
-                flagged += writeDirection(writer, ts, asset.label(), a.exchange(), b.exchange(),
+                flagged += writeDirection(writer, ts, asset.label(), asset.quoteCurrency(), a.exchange(), b.exchange(),
                     a.ask(), b.bid(), a.askStale(), b.bidStale());
-                flagged += writeDirection(writer, ts, asset.label(), b.exchange(), a.exchange(),
+                flagged += writeDirection(writer, ts, asset.label(), asset.quoteCurrency(), b.exchange(), a.exchange(),
                     b.ask(), a.bid(), b.askStale(), a.bidStale());
             }
         }
         return flagged;
     }
 
-    private static int writeDirection(BufferedWriter writer, String ts, String assetLabel,
+    private static int writeDirection(BufferedWriter writer, String ts, String assetLabel, String quoteCurrency,
                                        String buyExchange, String sellExchange,
                                        PriceLevel buyAt, PriceLevel sellAt,
                                        boolean buyStale, boolean sellStale) throws IOException {
-        Optional<NetSpread.Result> result = NetSpread.evaluate(buyExchange, sellExchange, buyAt, sellAt);
+        Optional<NetSpread.Result> result = NetSpread.evaluate(buyExchange, sellExchange, quoteCurrency, buyAt, sellAt);
         if (result.isEmpty()) {
             writer.write(String.join(",", ts, assetLabel, buyExchange, sellExchange, "", "", "", "", "", "", "",
                 "sin liquidez suficiente en algún lado"));

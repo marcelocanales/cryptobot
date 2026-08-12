@@ -10,15 +10,23 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ExchangeFeesTest {
 
     @Test
-    void returnsKnownFeesForEachConnectedExchange() {
-        assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("Poloniex"));
-        assertEquals(new BigDecimal("0.0060"), ExchangeFees.takerFee("NotBank"));
-        assertEquals(new BigDecimal("0.0080"), ExchangeFees.takerFee("Buda"));
-        assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("YoBit"));
+    void flatFeesIgnoreTheQuoteCurrency() {
+        assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("Poloniex", "USDT"));
+        assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("Poloniex", "BTC"));
+        assertEquals(new BigDecimal("0.0080"), ExchangeFees.takerFee("Buda", "CLP"));
+        assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("YoBit", "USDT"));
+    }
+
+    @Test
+    void notBankFeeDependsOnWhetherTheQuoteIsFiatLikeOrCrypto() {
+        // Tier base, confirmado en vivo contra la API real de NotBank (Sprint 0008).
+        assertEquals(new BigDecimal("0.0049"), ExchangeFees.takerFee("NotBank", "USDT"));
+        assertEquals(new BigDecimal("0.0049"), ExchangeFees.takerFee("NotBank", "CLP"));
+        assertEquals(new BigDecimal("0.0014"), ExchangeFees.takerFee("NotBank", "BTC"));
     }
 
     @Test
     void unknownExchangeIsAnError() {
-        assertThrows(IllegalArgumentException.class, () -> ExchangeFees.takerFee("Binance"));
+        assertThrows(IllegalArgumentException.class, () -> ExchangeFees.takerFee("Binance", "USDT"));
     }
 }

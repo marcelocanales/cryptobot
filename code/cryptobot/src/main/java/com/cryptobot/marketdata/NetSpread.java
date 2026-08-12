@@ -24,16 +24,19 @@ public final class NetSpread {
     }
 
     /**
+     * @param quoteCurrency moneda de cotización del par (ej. "USDT") — algunas fees
+     *                      dependen de esto, ver {@link ExchangeFees#takerFee}.
      * @return vacío si falta un nivel de precio en algún lado (sin liquidez
      * suficiente ya filtrada aguas arriba, ej. con {@code bestBidAbove}).
      */
-    public static Optional<Result> evaluate(String buyExchange, String sellExchange,
+    public static Optional<Result> evaluate(String buyExchange, String sellExchange, String quoteCurrency,
                                              PriceLevel buyAt, PriceLevel sellAt) {
         if (buyAt == null || sellAt == null) {
             return Optional.empty();
         }
         BigDecimal grossPct = percent(sellAt.price().subtract(buyAt.price()), buyAt.price());
-        BigDecimal feesPct = ExchangeFees.takerFee(buyExchange).add(ExchangeFees.takerFee(sellExchange))
+        BigDecimal feesPct = ExchangeFees.takerFee(buyExchange, quoteCurrency)
+            .add(ExchangeFees.takerFee(sellExchange, quoteCurrency))
             .multiply(BigDecimal.valueOf(100));
         BigDecimal netPct = grossPct.subtract(feesPct);
         return Optional.of(new Result(buyExchange, sellExchange, buyAt, sellAt, grossPct, feesPct, netPct));

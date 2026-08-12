@@ -2,7 +2,11 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0007, cerrado)
+## Qué existe hoy (Sprint 0008, cerrado)
+
+`ExchangeFees` deja de usar una estimación (0,60% flat) para NotBank y pasa a usar su fee real, encontrada en vivo contra la propia API pública de tarifas del exchange (no una fuente de terceros). Como esa fee varía según si el par cotiza contra una fiat/stablecoin o contra otra cripto, `ExchangeFees.takerFee` y `NetSpread.evaluate` ahora reciben la moneda de cotización como parámetro — antes solo importaba el exchange. `TrackedAsset` gana `quoteCurrency()` (se deriva del propio `label`, ej. "BTC/USDT" → "USDT") para no duplicar ese dato en cada lugar que lo necesita.
+
+## Qué existía en el Sprint 0007
 
 Se reemplaza el modelo de "2 exchanges fijos" por uno de **N exchanges combinables**. `TrackedAsset` (activo + moneda de cotización + umbral de nocional mínimo + lista de `Venue`, cada uno un exchange con su símbolo nativo) reemplaza a `TrackedPair` (que tenía exactamente 2 símbolos cableados). `TrackedAssets` es el registro único de qué activo cotiza en qué exchange — antes esa información vivía duplicada y desalineada entre `SpreadWatcher` (8 pares, solo Poloniex/NotBank) y `OverlapCheck` (11 combinaciones elegidas a mano); ahora ambos leen de la misma fuente y generan **todas** las combinaciones posibles de a 2 exchanges por activo (`C(n,2)`), no solo las que alguien pensó en cablear.
 
