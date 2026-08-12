@@ -13,6 +13,8 @@
 | [metodologia.md](metodologia.md) | Cómo trabajamos: ciclo de sprints, convenciones, publicación |
 | [entorno.md](entorno.md) | Inventario vivo: equipo, lenguajes, herramientas y servicios en uso |
 | [arquitectura.md](arquitectura.md) | Arquitectura actual — diagrama vivo, única fuente |
+| [glosario.md](glosario.md) | Términos de trading/cripto usados en `estrategias/` — para no asumir conocimiento previo |
+| [estrategias/README.md](estrategias/README.md) | Catálogo de estrategias de arbitraje, explicadas en detalle con diagramas e hipótesis de vigencia |
 | [CLAUDE.md](CLAUDE.md) | Contexto siempre activo para las sesiones (archivo real en la raíz del repo, expuesto aquí vía symlink) |
 
 > El estado de los sprints vive en [roadmap.md](roadmap.md), bajo su etapa. Para un sprint nuevo, copiar [_plantilla-sprint.md](sprints/_plantilla-sprint.md).
