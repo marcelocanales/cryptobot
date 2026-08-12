@@ -12,6 +12,11 @@ import java.util.List;
  */
 public record TrackedAsset(String label, BigDecimal minNotional, List<Venue> venues) {
 
+    /** Moneda de cotización, ej. "USDT" para "BTC/USDT" — usada por {@link ExchangeFees}. */
+    public String quoteCurrency() {
+        return label.substring(label.indexOf('/') + 1);
+    }
+
     /** Un exchange concreto donde este activo cotiza, con su símbolo nativo. */
     public record Venue(ExchangeConnector connector, String symbol) {
         public String exchangeName() {

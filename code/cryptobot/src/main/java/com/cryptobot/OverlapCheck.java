@@ -62,8 +62,8 @@ public class OverlapCheck {
                 PriceLevel askB = b.book().bestAskAbove(asset.minNotional());
                 PriceLevel bidB = b.book().bestBidAbove(asset.minNotional());
 
-                checkDirection(a.exchange(), b.exchange(), askA, bidB);
-                checkDirection(b.exchange(), a.exchange(), askB, bidA);
+                checkDirection(a.exchange(), b.exchange(), asset.quoteCurrency(), askA, bidB);
+                checkDirection(b.exchange(), a.exchange(), asset.quoteCurrency(), askB, bidA);
             }
         }
     }
@@ -72,9 +72,10 @@ public class OverlapCheck {
      * Neto, no bruto: al spread bruto se le resta la fee de taker de ambas
      * patas (modelo de ejecución taker-taker, ver docs/roadmap.md).
      */
-    private static void checkDirection(String buyExchange, String sellExchange, PriceLevel buyAt, PriceLevel sellAt) {
+    private static void checkDirection(String buyExchange, String sellExchange, String quoteCurrency,
+                                        PriceLevel buyAt, PriceLevel sellAt) {
         String label = "Comprar en " + buyExchange + ", vender en " + sellExchange;
-        Optional<NetSpread.Result> result = NetSpread.evaluate(buyExchange, sellExchange, buyAt, sellAt);
+        Optional<NetSpread.Result> result = NetSpread.evaluate(buyExchange, sellExchange, quoteCurrency, buyAt, sellAt);
         if (result.isEmpty()) {
             System.out.println("  " + label + ": sin liquidez suficiente para el nocional mínimo");
             return;

@@ -14,8 +14,8 @@ class NetSpreadTest {
     @Test
     void missingLiquidityOnEitherSideIsEmpty() {
         var withBid = new PriceLevel(new BigDecimal("100"), new BigDecimal("1"));
-        assertTrue(NetSpread.evaluate("Poloniex", "NotBank", null, withBid).isEmpty());
-        assertTrue(NetSpread.evaluate("Poloniex", "NotBank", withBid, null).isEmpty());
+        assertTrue(NetSpread.evaluate("Poloniex", "NotBank", "USDT", null, withBid).isEmpty());
+        assertTrue(NetSpread.evaluate("Poloniex", "NotBank", "USDT", withBid, null).isEmpty());
     }
 
     @Test
@@ -24,7 +24,7 @@ class NetSpreadTest {
         var buyAt = new PriceLevel(new BigDecimal("100.00"), new BigDecimal("1"));
         var sellAt = new PriceLevel(new BigDecimal("100.30"), new BigDecimal("1"));
 
-        Optional<NetSpread.Result> result = NetSpread.evaluate("YoBit", "Poloniex", buyAt, sellAt);
+        Optional<NetSpread.Result> result = NetSpread.evaluate("YoBit", "Poloniex", "USDT", buyAt, sellAt);
 
         assertTrue(result.isPresent());
         NetSpread.Result r = result.get();
@@ -38,10 +38,24 @@ class NetSpreadTest {
         var buyAt = new PriceLevel(new BigDecimal("100.00"), new BigDecimal("1"));
         var sellAt = new PriceLevel(new BigDecimal("100.50"), new BigDecimal("1"));
 
-        NetSpread.Result r = NetSpread.evaluate("YoBit", "Poloniex", buyAt, sellAt).orElseThrow();
+        NetSpread.Result r = NetSpread.evaluate("YoBit", "Poloniex", "USDT", buyAt, sellAt).orElseThrow();
 
         assertEquals(new BigDecimal("0.500000"), r.grossPct());
         assertTrue(r.isPositive());
         assertEquals(new BigDecimal("0.100000"), r.netPct());
+    }
+
+    @Test
+    void notBankFeeChangesWithTheQuoteCurrency() {
+        // Mismo bruto, misma otra pata (Buda 0,80%) — cambia solo la fee de NotBank
+        // según si el par cotiza en algo fiat-like (USDT/CLP) o en otra cripto (BTC).
+        var buyAt = new PriceLevel(new BigDecimal("100.00"), new BigDecimal("1"));
+        var sellAt = new PriceLevel(new BigDecimal("101.00"), new BigDecimal("1"));
+
+        NetSpread.Result cryptoFiat = NetSpread.evaluate("Buda", "NotBank", "CLP", buyAt, sellAt).orElseThrow();
+        NetSpread.Result cryptoCrypto = NetSpread.evaluate("Buda", "NotBank", "BTC", buyAt, sellAt).orElseThrow();
+
+        assertEquals(new BigDecimal("1.2900"), cryptoFiat.feesPct());   // 0,80% + 0,49%
+        assertEquals(new BigDecimal("0.9400"), cryptoCrypto.feesPct()); // 0,80% + 0,14%
     }
 }
