@@ -2,6 +2,7 @@ package com.cryptobot.watch;
 
 import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.notbank.NotBankConnector;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 import com.cryptobot.triangular.CrossTriangle;
@@ -98,31 +99,35 @@ public class CrossTriangleWatcher {
                 Instant cycleStart = Instant.now();
                 String ts = timestamp();
 
-                Map<String, OrderBook> books = new HashMap<>();
-                Map<String, Boolean> staleByKeyAndSide = new HashMap<>();
-
+                List<ParallelFetch.FetchTask<String, OrderBook>> fetchTasks = new ArrayList<>();
                 for (Map.Entry<String, CrossVenue> entry : venueByKey.entrySet()) {
-                    String key = entry.getKey();
                     CrossVenue v = entry.getValue();
-                    try {
-                        OrderBook book = v.connector().fetchOrderBook(v.market().symbol());
-                        books.put(key, book);
+                    fetchTasks.add(new ParallelFetch.FetchTask<>(entry.getKey(), v.exchangeName(),
+                        () -> v.connector().fetchOrderBook(v.market().symbol())));
+                }
+                ParallelFetch.Outcome<String, OrderBook> outcome = ParallelFetch.fetchAll(fetchTasks);
+                Map<String, OrderBook> books = outcome.results();
 
-                        var minNotional = TriangleSpread.minNotionalFor(v.market().quote());
-                        var bid = book.bestBidAbove(minNotional);
-                        var ask = book.bestAskAbove(minNotional);
-                        if (bid != null) {
-                            staleByKeyAndSide.put(key + ":bid", staleness.observe(key + ":bid", bid.price()));
-                        }
-                        if (ask != null) {
-                            staleByKeyAndSide.put(key + ":ask", staleness.observe(key + ":ask", ask.price()));
-                        }
-                    } catch (Exception e) {
-                        writer.write(String.join(",", ts, "", "", "", "", "", "", "", "",
-                            escapeCsv(key + ": " + e.getMessage())));
-                        writer.newLine();
-                        System.out.println("  !! " + key + ": error — " + e.getMessage());
+                Map<String, Boolean> staleByKeyAndSide = new HashMap<>();
+                for (Map.Entry<String, OrderBook> entry : books.entrySet()) {
+                    String key = entry.getKey();
+                    OrderBook book = entry.getValue();
+                    CrossVenue v = venueByKey.get(key);
+                    var minNotional = TriangleSpread.minNotionalFor(v.market().quote());
+                    var bid = book.bestBidAbove(minNotional);
+                    var ask = book.bestAskAbove(minNotional);
+                    if (bid != null) {
+                        staleByKeyAndSide.put(key + ":bid", staleness.observe(key + ":bid", bid.price()));
                     }
+                    if (ask != null) {
+                        staleByKeyAndSide.put(key + ":ask", staleness.observe(key + ":ask", ask.price()));
+                    }
+                }
+                for (Map.Entry<String, String> entry : outcome.errors().entrySet()) {
+                    writer.write(String.join(",", ts, "", "", "", "", "", "", "", "",
+                        escapeCsv(entry.getKey() + ": " + entry.getValue())));
+                    writer.newLine();
+                    System.out.println("  !! " + entry.getKey() + ": error — " + entry.getValue());
                 }
 
                 int flagged = 0;

@@ -2,12 +2,13 @@ package com.cryptobot;
 
 import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 import com.cryptobot.triangular.Triangle;
 import com.cryptobot.triangular.TriangleFinder;
 import com.cryptobot.triangular.TriangleSpread;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,18 +42,17 @@ public class TriangleCheck {
             symbols.add(t.marketCA().symbol());
         }
 
-        Map<String, OrderBook> books = new HashMap<>();
-        int fetchErrors = 0;
+        List<ParallelFetch.FetchTask<String, OrderBook>> fetchTasks = new ArrayList<>();
         for (String symbol : symbols) {
-            try {
-                books.put(symbol, poloniex.fetchOrderBook(symbol));
-            } catch (RuntimeException e) {
-                fetchErrors++;
-                System.out.println("  ERROR (" + symbol + "): " + e.getMessage());
-            }
+            fetchTasks.add(new ParallelFetch.FetchTask<>(symbol, "Poloniex", () -> poloniex.fetchOrderBook(symbol)));
+        }
+        ParallelFetch.Outcome<String, OrderBook> outcome = ParallelFetch.fetchAll(fetchTasks);
+        Map<String, OrderBook> books = outcome.results();
+        for (Map.Entry<String, String> entry : outcome.errors().entrySet()) {
+            System.out.println("  ERROR (" + entry.getKey() + "): " + entry.getValue());
         }
         System.out.println("Order books únicos: " + symbols.size() + " pedidos, " + books.size()
-            + " obtenidos (" + fetchErrors + " errores)");
+            + " obtenidos (" + outcome.errors().size() + " errores)");
         System.out.println();
 
         int positivos = 0;

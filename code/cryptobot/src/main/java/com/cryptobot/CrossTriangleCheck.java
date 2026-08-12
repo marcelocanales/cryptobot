@@ -2,6 +2,7 @@ package com.cryptobot;
 
 import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.notbank.NotBankConnector;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 import com.cryptobot.triangular.CrossTriangle;
@@ -54,19 +55,19 @@ public class CrossTriangleCheck {
             }
         }
 
-        Map<String, OrderBook> books = new HashMap<>();
-        int fetchErrors = 0;
+        List<ParallelFetch.FetchTask<String, OrderBook>> fetchTasks = new ArrayList<>();
         for (Map.Entry<String, CrossVenue> entry : venueByKey.entrySet()) {
             CrossVenue v = entry.getValue();
-            try {
-                books.put(entry.getKey(), v.connector().fetchOrderBook(v.market().symbol()));
-            } catch (RuntimeException e) {
-                fetchErrors++;
-                System.out.println("  ERROR (" + entry.getKey() + "): " + e.getMessage());
-            }
+            fetchTasks.add(new ParallelFetch.FetchTask<>(entry.getKey(), v.exchangeName(),
+                () -> v.connector().fetchOrderBook(v.market().symbol())));
+        }
+        ParallelFetch.Outcome<String, OrderBook> outcome = ParallelFetch.fetchAll(fetchTasks);
+        Map<String, OrderBook> books = outcome.results();
+        for (Map.Entry<String, String> entry : outcome.errors().entrySet()) {
+            System.out.println("  ERROR (" + entry.getKey() + "): " + entry.getValue());
         }
         System.out.println("Order books únicos: " + venueByKey.size() + " pedidos, " + books.size()
-            + " obtenidos (" + fetchErrors + " errores)");
+            + " obtenidos (" + outcome.errors().size() + " errores)");
         System.out.println();
 
         int positivos = 0;

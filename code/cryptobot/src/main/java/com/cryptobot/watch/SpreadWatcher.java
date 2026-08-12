@@ -2,6 +2,7 @@ package com.cryptobot.watch;
 
 import com.cryptobot.marketdata.NetSpread;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.PriceLevel;
 import com.cryptobot.marketdata.TrackedAsset;
 import com.cryptobot.marketdata.TrackedAssets;
@@ -84,10 +85,21 @@ public class SpreadWatcher {
             while (true) {
                 cycle++;
                 Instant cycleStart = Instant.now();
-                int flagged = 0;
+                String ts = timestamp();
 
+                List<ParallelFetch.FetchTask<String, OrderBook>> fetchTasks = new ArrayList<>();
                 for (TrackedAsset asset : assets) {
-                    flagged += processAsset(asset, writer, staleness);
+                    for (TrackedAsset.Venue venue : asset.venues()) {
+                        String key = venue.exchangeName() + "|" + venue.symbol();
+                        fetchTasks.add(new ParallelFetch.FetchTask<>(key, venue.exchangeName(),
+                            () -> venue.connector().fetchOrderBook(venue.symbol())));
+                    }
+                }
+                ParallelFetch.Outcome<String, OrderBook> outcome = ParallelFetch.fetchAll(fetchTasks);
+
+                int flagged = 0;
+                for (TrackedAsset asset : assets) {
+                    flagged += processAsset(asset, writer, staleness, outcome, ts);
                 }
                 writer.flush();
 
@@ -103,27 +115,29 @@ public class SpreadWatcher {
                                boolean bidStale, boolean askStale) {
     }
 
-    private static int processAsset(TrackedAsset asset, BufferedWriter writer, StalenessTracker staleness)
+    private static int processAsset(TrackedAsset asset, BufferedWriter writer, StalenessTracker staleness,
+                                     ParallelFetch.Outcome<String, OrderBook> outcome, String ts)
             throws IOException {
-        String ts = timestamp();
         List<VenueQuote> quotes = new ArrayList<>();
 
         for (TrackedAsset.Venue venue : asset.venues()) {
-            try {
-                OrderBook book = venue.connector().fetchOrderBook(venue.symbol());
-                PriceLevel bid = book.bestBidAbove(asset.minNotional());
-                PriceLevel ask = book.bestAskAbove(asset.minNotional());
-                boolean bidStale = bid != null
-                    && staleness.observe(venue.exchangeName() + ":" + asset.label() + ":bid", bid.price());
-                boolean askStale = ask != null
-                    && staleness.observe(venue.exchangeName() + ":" + asset.label() + ":ask", ask.price());
-                quotes.add(new VenueQuote(venue.exchangeName(), bid, ask, bidStale, askStale));
-            } catch (Exception e) {
+            String key = venue.exchangeName() + "|" + venue.symbol();
+            OrderBook book = outcome.results().get(key);
+            if (book == null) {
+                String error = outcome.errors().getOrDefault(key, "sin datos");
                 writer.write(String.join(",", ts, asset.label(), venue.exchangeName(), "", "", "", "", "", "", "", "",
-                    escapeCsv(String.valueOf(e.getMessage()))));
+                    escapeCsv(error)));
                 writer.newLine();
-                System.out.println("  !! " + asset.label() + " (" + venue.exchangeName() + "): error — " + e.getMessage());
+                System.out.println("  !! " + asset.label() + " (" + venue.exchangeName() + "): error — " + error);
+                continue;
             }
+            PriceLevel bid = book.bestBidAbove(asset.minNotional());
+            PriceLevel ask = book.bestAskAbove(asset.minNotional());
+            boolean bidStale = bid != null
+                && staleness.observe(venue.exchangeName() + ":" + asset.label() + ":bid", bid.price());
+            boolean askStale = ask != null
+                && staleness.observe(venue.exchangeName() + ":" + asset.label() + ":ask", ask.price());
+            quotes.add(new VenueQuote(venue.exchangeName(), bid, ask, bidStale, askStale));
         }
 
         int flagged = 0;

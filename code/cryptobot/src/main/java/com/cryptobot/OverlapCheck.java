@@ -2,6 +2,7 @@ package com.cryptobot;
 
 import com.cryptobot.marketdata.NetSpread;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.PriceLevel;
 import com.cryptobot.marketdata.TrackedAsset;
 import com.cryptobot.marketdata.TrackedAssets;
@@ -10,7 +11,9 @@ import com.cryptobot.marketdata.notbank.NotBankConnector;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 import com.cryptobot.marketdata.yobit.YobitConnector;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -30,9 +33,22 @@ public class OverlapCheck {
 
         List<TrackedAsset> assets = TrackedAssets.all(poloniex, notBank, buda, yobit);
 
+        List<ParallelFetch.FetchTask<String, OrderBook>> fetchTasks = new ArrayList<>();
+        for (TrackedAsset asset : assets) {
+            for (TrackedAsset.Venue venue : asset.venues()) {
+                String key = venue.exchangeName() + "|" + venue.symbol();
+                fetchTasks.add(new ParallelFetch.FetchTask<>(key, venue.exchangeName(),
+                    () -> venue.connector().fetchOrderBook(venue.symbol())));
+            }
+        }
+        ParallelFetch.Outcome<String, OrderBook> outcome = ParallelFetch.fetchAll(fetchTasks);
+        for (Map.Entry<String, String> error : outcome.errors().entrySet()) {
+            System.out.println("  ERROR (" + error.getKey() + "): " + error.getValue());
+        }
+
         for (TrackedAsset asset : assets) {
             System.out.println("=== " + asset.label() + " ===");
-            checkAsset(asset);
+            checkAsset(asset, outcome.results());
             System.out.println();
         }
     }
@@ -40,23 +56,19 @@ public class OverlapCheck {
     private record VenueBook(String exchange, OrderBook book) {
     }
 
-    private static void checkAsset(TrackedAsset asset) {
-        List<VenueBook> books = asset.venues().stream()
-            .map(venue -> {
-                try {
-                    return new VenueBook(venue.exchangeName(), venue.connector().fetchOrderBook(venue.symbol()));
-                } catch (RuntimeException e) {
-                    System.out.println("  ERROR (" + venue.exchangeName() + "): " + e.getMessage());
-                    return null;
-                }
-            })
-            .filter(vb -> vb != null)
-            .toList();
+    private static void checkAsset(TrackedAsset asset, Map<String, OrderBook> books) {
+        List<VenueBook> venueBooks = new ArrayList<>();
+        for (TrackedAsset.Venue venue : asset.venues()) {
+            OrderBook book = books.get(venue.exchangeName() + "|" + venue.symbol());
+            if (book != null) {
+                venueBooks.add(new VenueBook(venue.exchangeName(), book));
+            }
+        }
 
-        for (int i = 0; i < books.size(); i++) {
-            for (int j = i + 1; j < books.size(); j++) {
-                VenueBook a = books.get(i);
-                VenueBook b = books.get(j);
+        for (int i = 0; i < venueBooks.size(); i++) {
+            for (int j = i + 1; j < venueBooks.size(); j++) {
+                VenueBook a = venueBooks.get(i);
+                VenueBook b = venueBooks.get(j);
                 PriceLevel askA = a.book().bestAskAbove(asset.minNotional());
                 PriceLevel bidA = a.book().bestBidAbove(asset.minNotional());
                 PriceLevel askB = b.book().bestAskAbove(asset.minNotional());
