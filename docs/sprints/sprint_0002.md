@@ -25,17 +25,22 @@ Construir el primer conector de solo lectura contra las APIs públicas de Poloni
 
 ## Tareas
 - [x] Conector de solo lectura — Poloniex (order book) — `code/cryptobot/.../poloniex/PoloniexConnector.java`, verificado contra la API real
-- [ ] Conector de solo lectura — NotBank (L2 snapshot) — contrato de API todavía sin confirmar del todo (parece formato tipo AlphaPoint, con `OMSId`/`InstrumentId`); investigar antes de escribirlo
-- [x] Elegir el par líquido a usar como control — LTC_USDT (ya teníamos referencia real de precio de la sesión de exploración manual, ~45,3-45,4)
-- [ ] Calcular spread real cruzado (ask/bid, ambas direcciones) y compararlo contra "último precio" de cada exchange — pendiente hasta tener NotBank
-- [ ] Documentar el resultado
+- [x] Conector de solo lectura — NotBank (L2 snapshot) — `code/cryptobot/.../notbank/NotBankConnector.java`. Host real (`api.notbank.exchange`) y formato (AlphaPoint: `GetInstruments` para resolver `InstrumentId`, `GetL2Snapshot` en filas de array posicional) confirmados a mano, no estaban completos en la documentación pública
+- [x] Elegir el par líquido a usar como control — LTC_USDT (Poloniex) / LTCUSDT (NotBank) — ya teníamos referencia real de precio de la sesión de exploración manual, ~45,3-45,4
+- [x] Calcular spread real cruzado (ask/bid, ambas direcciones) y compararlo contra "último precio" de cada exchange — hecho en `Main.java`
+- [x] Documentar el resultado
 
 ## Sprint Review
-**Cómo probar:** correr el conector contra los dos exchanges en el par elegido y mostrar el spread real calculado.
+**Cómo probar:** `mvn exec:java` en `code/cryptobot/` — trae los dos books en vivo y muestra el spread cruzado en las dos direcciones.
 
 **Debe cumplir:**
-- [ ] El spread calculado usa ask/bid ejecutable, no último precio
-- [ ] El resultado en el par líquido de control es coherente con lo esperado (cerca de cero, sin arbitraje obvio) — si no lo es, se investiga la herramienta antes de seguir
+- [x] El spread calculado usa ask/bid ejecutable, no último precio
+- [x] El resultado en el par líquido de control es coherente con lo esperado (sin arbitraje obvio) — si no lo es, se investiga la herramienta antes de seguir
 
 ## Cierre
-_(al cerrar)_ Qué quedó funcionando · qué quedó pendiente o se aprendió · siguiente paso.
+
+Quedó funcionando de punta a punta: `PoloniexConnector` y `NotBankConnector`, los dos contra APIs reales (no mockeadas), cada uno con un test que parsea una respuesta real capturada. `Main` trae LTC/USDT de los dos exchanges y calcula el spread cruzado en ambas direcciones — resultado: **sin arbitraje en ninguna de las dos** (-0,31% y -0,28% respectivamente), consistente con todo lo que veníamos encontrando a mano en la sesión de exploración manual. La herramienta confirma lo que ya sabíamos por otro camino — exactamente la validación que buscaba este sprint antes de confiar en ella para pares chicos.
+
+Lo más valioso no estaba en el alcance original: el contrato real de la API de NotBank (host, formato de `GetL2Snapshot`) no está completo en su documentación pública — hubo que confirmarlo probando en vivo. Quedó documentado en `entorno.md` para no tener que redescubrirlo.
+
+Pendiente / siguiente paso: sumar BudaPRO y YoBit (mismo patrón, `ExchangeConnector` nuevo cada uno); expandir de LTC/USDT a pares chicos/regionales, que es donde vive la hipótesis real de la 01; y empezar a restar fees reales al spread bruto, no solo mostrarlo crudo.

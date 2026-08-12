@@ -50,7 +50,7 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 
 |              Sprint              | Objetivo                                                       | Estado         |
 | :------------------------------: | :--------------------------------------------------------------| :------------- |
-| [`0002`](sprints/sprint_0002.md) | Primer conector de solo lectura y validación de spread real    | 📝 Planificado  |
+| [`0002`](sprints/sprint_0002.md) | Primer conector de solo lectura y validación de spread real    | ✅ Cerrado      |
 
 ### Estados
 
