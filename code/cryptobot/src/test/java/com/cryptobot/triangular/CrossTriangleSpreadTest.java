@@ -25,6 +25,11 @@ class CrossTriangleSpreadTest {
         public OrderBook fetchOrderBook(String symbol) {
             throw new UnsupportedOperationException("no hace falta para este test");
         }
+
+        @Override
+        public List<Market> fetchMarkets() {
+            throw new UnsupportedOperationException("no hace falta para este test");
+        }
     }
 
     // Nombres reales — ExchangeFees solo conoce Poloniex/NotBank/Buda/YoBit.

@@ -1,5 +1,7 @@
 package com.cryptobot.marketdata;
 
+import java.util.List;
+
 /**
  * Read-only market data access for one exchange. No trading, no auth —
  * see docs/metodologia.md: ningún capital real sin autorización explícita.
@@ -13,4 +15,7 @@ public interface ExchangeConnector {
      *               e.g. Poloniex uses "LTC_USDT")
      */
     OrderBook fetchOrderBook(String symbol);
+
+    /** Todos los mercados activos/no ocultos del exchange. */
+    List<Market> fetchMarkets();
 }
