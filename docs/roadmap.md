@@ -61,6 +61,7 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 | [`0010`](sprints/sprint_0010.md) | TriangleWatcher — monitoreo continuo triangular                | ✅ Cerrado      |
 | [`0011`](sprints/sprint_0011.md) | Hallazgo: pares cotizados en BTC mayormente congelados         | ✅ Cerrado      |
 | [`0012`](sprints/sprint_0012.md) | Triangular cross-exchange, primer corte (Poloniex + NotBank)   | ✅ Cerrado      |
+| [`0013`](sprints/sprint_0013.md) | CrossTriangleWatcher — monitoreo continuo cross-exchange       | ✅ Cerrado      |
 
 ### Estados
 

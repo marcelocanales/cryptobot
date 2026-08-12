@@ -2,7 +2,11 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0012, cerrado)
+## Qué existe hoy (Sprint 0013, cerrado)
+
+`CrossTriangleWatcher` — versión continua de `CrossTriangleCheck`, mismo salto que `TriangleWatcher` fue para `TriangleCheck` (Sprint 0009→0010). Descubre los 69 triángulos Poloniex+NotBank una sola vez al arrancar, pide cada uno de los 168 order books únicos una sola vez por ciclo, y reusa `StalenessTracker` sin cambios. Suma el mismo umbral de implausibilidad de `CrossTriangleCheck` (Sprint 0012, el hallazgo del choque de tickers BOB) — cualquier resultado con `|bruto| > 50%` se marca `IMPLAUSIBLE` en el CSV en vez de contarse como señal real.
+
+## Qué existía en el Sprint 0012
 
 Primer código para la **hipótesis 03 (triangular cross-exchange)** — reparte las 3 patas de un ciclo entre exchanges distintos, en vez de exigir que las tres vivan en el mismo (hipótesis 02). Nuevo, sobre Poloniex + NotBank:
 - `CrossVenue` (en `triangular`): un mercado concreto en un exchange concreto — análogo a `TrackedAsset.Venue`, pero con el `Market` (base/quote) adjunto, no solo el símbolo.
