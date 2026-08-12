@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Java / Maven
+target/
+*.class
+
 # OS / editors
 .DS_Store
 Thumbs.db

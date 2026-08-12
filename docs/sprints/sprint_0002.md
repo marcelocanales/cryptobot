@@ -19,14 +19,15 @@ Construir el primer conector de solo lectura contra las APIs públicas de Poloni
 - _(Fuera de alcance: BudaPRO y YoBit — quedan para un sprint siguiente. Pares chicos/ilíquidos. Cualquier tipo de ejecución o cuenta con permisos de trading — sigue siendo solo lectura.)_
 
 ## Decisiones
-Stack/lenguaje: por definir al iniciar, just-in-time — ver [metodologia.md](../metodologia.md).
-- _(pendiente)_
+- **Java 21 + Maven**, sin framework (nada de Spring Boot todavía — no hay ceremonia que justifique para "pegarle a dos APIs y comparar"). Zona de confort de Marcelo. Detalle y alternativas consideradas en [entorno.md](../entorno.md).
+- **Sin ccxt por ahora.** Existe y tiene soporte real en Java, pero no está publicado en Maven Central — se instala compilando desde fuente con Gradle. Para dos endpoints públicos simples, escribirlos a mano (HttpClient + Jackson) es menos fricción. Se puede reconsiderar si se suman muchos más exchanges.
+- **`BigDecimal`, nunca `double`**, para precios y cantidades — es plata, no hay margen para error de precisión de punto flotante.
 
 ## Tareas
-- [ ] Conector de solo lectura — Poloniex (order book)
-- [ ] Conector de solo lectura — NotBank (L2 snapshot)
-- [ ] Elegir el par líquido a usar como control
-- [ ] Calcular spread real cruzado (ask/bid, ambas direcciones) y compararlo contra "último precio" de cada exchange
+- [x] Conector de solo lectura — Poloniex (order book) — `code/cryptobot/.../poloniex/PoloniexConnector.java`, verificado contra la API real
+- [ ] Conector de solo lectura — NotBank (L2 snapshot) — contrato de API todavía sin confirmar del todo (parece formato tipo AlphaPoint, con `OMSId`/`InstrumentId`); investigar antes de escribirlo
+- [x] Elegir el par líquido a usar como control — LTC_USDT (ya teníamos referencia real de precio de la sesión de exploración manual, ~45,3-45,4)
+- [ ] Calcular spread real cruzado (ask/bid, ambas direcciones) y compararlo contra "último precio" de cada exchange — pendiente hasta tener NotBank
 - [ ] Documentar el resultado
 
 ## Sprint Review
