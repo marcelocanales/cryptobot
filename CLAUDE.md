@@ -3,7 +3,7 @@
 ## Qué es
 Exploración de un bot de arbitraje de criptomonedas: detectar diferencias de precio del mismo par entre distintos exchanges (cross-exchange) o arbitraje triangular dentro de un mismo exchange, que superen fees y fricción.
 
-Las **etapas** ya están definidas en [docs/roadmap.md](docs/roadmap.md) (1. Estado del arte → 2. Análisis de viabilidad → 3. pendiente) y el primer sprint está planificado. La **visión** ([docs/vision.md](docs/vision.md)) sigue pendiente de completar con la motivación y los antecedentes de una experiencia previa de Marcelo (~10 años atrás, arbitraje real en Bittrex/Cex.io/Poloniex) — no asumir ni inventar esa parte.
+Las **etapas** ya están definidas en [docs/roadmap.md](docs/roadmap.md) (1. Estado del arte, cerrada → 2. Análisis de viabilidad, en curso → 3. pendiente). El catálogo de 7 estrategias vive en [docs/estrategias/](docs/estrategias/README.md). La **visión** ([docs/vision.md](docs/vision.md)) sigue pendiente de completar con la motivación y los antecedentes de una experiencia previa de Marcelo (~10 años atrás, arbitraje real en Bittrex/Cex.io/Poloniex) — no asumir ni inventar esa parte.
 
 ## Quién construye (Marcelo)
 - Senior backend engineer — muy avanzado en Java/Spring Boot y sistemas distribuidos; mucha experiencia con LLMs y APIs de AI. Python lo maneja pero no es su zona de confort (explicar lo específico de Python con más detalle si el stack termina siendo Python).
@@ -22,4 +22,4 @@ Una regla ya firme, no negociable, aplica desde ya: **ninguna decisión que invo
 
 ## Dónde está todo
 - **Documentación:** índice maestro en **`docs/hub.md`** (visión, roadmap, metodología, entorno, sprints). Empezar siempre por ahí.
-- **Código:** todavía no existe. Se crea (y este archivo se actualiza) cuando el primer sprint lo defina.
+- **Código:** `code/cryptobot/` — módulo único Maven, Java 21. Solo lectura de mercado por ahora (sin cuentas, sin trading) — arquitectura viva en `docs/arquitectura.md`.
