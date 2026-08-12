@@ -61,6 +61,23 @@ class TriangleSpreadTest {
     }
 
     @Test
+    void legsRecordWhichSymbolAndSideEachStepUsed() {
+        Map<String, OrderBook> books = Map.of(
+            "BTC_USDT", book("BTC_USDT", new BigDecimal("49990"), new BigDecimal("50000")),
+            "ETH_BTC", book("ETH_BTC", new BigDecimal("0.0499"), new BigDecimal("0.05")),
+            "ETH_USDT", book("ETH_USDT", new BigDecimal("2510"), new BigDecimal("2511"))
+        );
+
+        TriangleSpread.Result r = TriangleSpread.evaluateForward("Poloniex", TRIANGLE, books).orElseThrow();
+
+        // USDT->BTC (compra, ask) -> BTC->ETH (compra, ask) -> ETH->USDT (venta, bid)
+        assertEquals(3, r.legs().size());
+        assertEquals(new TriangleSpread.Leg("BTC_USDT", "ask", new BigDecimal("50000")), r.legs().get(0));
+        assertEquals(new TriangleSpread.Leg("ETH_BTC", "ask", new BigDecimal("0.05")), r.legs().get(1));
+        assertEquals(new TriangleSpread.Leg("ETH_USDT", "bid", new BigDecimal("2510")), r.legs().get(2));
+    }
+
+    @Test
     void backwardDirectionUsesTheOppositeLegOrder() {
         Map<String, OrderBook> books = Map.of(
             "BTC_USDT", book("BTC_USDT", new BigDecimal("49990"), new BigDecimal("50000")),

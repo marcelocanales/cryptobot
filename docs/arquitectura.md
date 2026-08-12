@@ -2,7 +2,13 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0009, cerrado)
+## Qué existe hoy (Sprint 0010, cerrado)
+
+`TriangleWatcher` — la versión continua de `TriangleCheck`, mismo salto que `SpreadWatcher` fue para `OverlapCheck` en su momento (Sprint 0002→0003). Descubre los 23 triángulos una sola vez al arrancar (los mercados de un exchange no cambian en el rato que dura una corrida), y en cada ciclo pide cada uno de los ~40 order books únicos una sola vez, evalúa las dos direcciones de los 23 triángulos, y reusa `StalenessTracker` tal cual para marcar patas de precio congelado.
+
+Para que el detector de staleness supiera qué pata usó cada dirección, `TriangleSpread.Result` ganó un campo `legs()` — qué símbolo y lado del book (bid/ask) usó cada una de las 3 conversiones del ciclo. `minNotionalFor` pasó de privado a público en `TriangleSpread`, para que `TriangleWatcher` filtre liquidez con el mismo umbral al observar staleness.
+
+## Qué existía en el Sprint 0009
 
 Primer código para la **hipótesis 02 (triangular intra-exchange)** — hasta ahora todo el código era sobre la 01 (spot cross-exchange). Nuevo paquete `com.cryptobot.triangular`, independiente de `watch`/`OverlapCheck`:
 - `Market` (en `marketdata`, reusable por cualquier exchange): activo base + moneda de cotización + símbolo — resultado de listar **todos** los mercados de un exchange, no un símbolo elegido a mano. `PoloniexConnector` gana `fetchMarkets()` (`GET /markets`, filtra `state=NORMAL`).

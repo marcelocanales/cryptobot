@@ -7,6 +7,7 @@ import com.cryptobot.marketdata.PriceLevel;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,10 +28,14 @@ public final class TriangleSpread {
     private static final BigDecimal MIN_NOTIONAL_BTC = new BigDecimal("0.00078");
     private static final MathContext MC = new MathContext(20);
 
-    public record Result(List<String> path, BigDecimal grossPct, BigDecimal netPct) {
+    public record Result(List<String> path, List<Leg> legs, BigDecimal grossPct, BigDecimal netPct) {
         public boolean isPositive() {
             return netPct.signum() > 0;
         }
+    }
+
+    /** Qué símbolo y lado del book (bid/ask) usó una pata del ciclo, y a qué precio. */
+    public record Leg(String symbol, String side, BigDecimal price) {
     }
 
     private TriangleSpread() {
@@ -56,6 +61,7 @@ public final class TriangleSpread {
                                               List<Market> legMarkets, Map<String, OrderBook> books) {
         BigDecimal gross = BigDecimal.ONE;
         BigDecimal net = BigDecimal.ONE;
+        List<Leg> legs = new ArrayList<>();
 
         for (int i = 0; i < legMarkets.size(); i++) {
             Market market = legMarkets.get(i);
@@ -71,10 +77,12 @@ public final class TriangleSpread {
                 PriceLevel bid = book.bestBidAbove(minNotional);
                 if (bid == null) return Optional.empty();
                 rate = bid.price();
+                legs.add(new Leg(market.symbol(), "bid", bid.price()));
             } else {
                 PriceLevel ask = book.bestAskAbove(minNotional);
                 if (ask == null) return Optional.empty();
                 rate = BigDecimal.ONE.divide(ask.price(), MC);
+                legs.add(new Leg(market.symbol(), "ask", ask.price()));
             }
 
             BigDecimal fee = ExchangeFees.takerFee(exchangeName, market.quote());
@@ -83,7 +91,7 @@ public final class TriangleSpread {
         }
 
         List<String> path = List.of(fromCurrencies.get(0), fromCurrencies.get(1), fromCurrencies.get(2), fromCurrencies.get(0));
-        return Optional.of(new Result(path, toPct(gross), toPct(net)));
+        return Optional.of(new Result(path, legs, toPct(gross), toPct(net)));
     }
 
     private static BigDecimal toPct(BigDecimal amount) {
@@ -91,7 +99,8 @@ public final class TriangleSpread {
             .round(new MathContext(8));
     }
 
-    private static BigDecimal minNotionalFor(String currency) {
+    /** Público: {@code TriangleWatcher} lo reusa para observar staleness con el mismo umbral. */
+    public static BigDecimal minNotionalFor(String currency) {
         return "BTC".equals(currency) ? MIN_NOTIONAL_BTC : MIN_NOTIONAL_USDT;
     }
 }
