@@ -2,7 +2,15 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0008, cerrado)
+## Qué existe hoy (Sprint 0009, cerrado)
+
+Primer código para la **hipótesis 02 (triangular intra-exchange)** — hasta ahora todo el código era sobre la 01 (spot cross-exchange). Nuevo paquete `com.cryptobot.triangular`, independiente de `watch`/`OverlapCheck`:
+- `Market` (en `marketdata`, reusable por cualquier exchange): activo base + moneda de cotización + símbolo — resultado de listar **todos** los mercados de un exchange, no un símbolo elegido a mano. `PoloniexConnector` gana `fetchMarkets()` (`GET /markets`, filtra `state=NORMAL`).
+- `TriangleFinder`: genérico, no atado a Poloniex — dado un ancla (ej. "USDT"), encuentra qué monedas cotizan contra ella y además tienen mercado directo entre sí, y arma los `Triangle` reales. Nada hardcodeado: en la corrida en vivo encontró 23 triángulos en Poloniex, más de los que se habían contado a mano explorando manualmente.
+- `TriangleSpread`: cálculo separado de `NetSpread` — un triángulo **compone** un monto real a través de 3 conversiones (no es una resta de dos precios), así que se parte de 1 unidad de la moneda ancla y se va multiplicando por cada conversión (bid o ask según si esa pata vende o compra la base del mercado) y por `(1 - fee)` de esa pata. Reusa `ExchangeFees.takerFee`, no reusa la lógica de `NetSpread`.
+- `TriangleCheck` (en `com.cryptobot`, paralelo a `OverlapCheck`): foto en vivo, no continua todavía — descubre los triángulos, pide cada order book único una sola vez (se comparten entre triángulos, ej. BTC/USDT aparece en casi todos), evalúa las dos direcciones de cada uno.
+
+## Qué existía en el Sprint 0008
 
 `ExchangeFees` deja de usar una estimación (0,60% flat) para NotBank y pasa a usar su fee real, encontrada en vivo contra la propia API pública de tarifas del exchange (no una fuente de terceros). Como esa fee varía según si el par cotiza contra una fiat/stablecoin o contra otra cripto, `ExchangeFees.takerFee` y `NetSpread.evaluate` ahora reciben la moneda de cotización como parámetro — antes solo importaba el exchange. `TrackedAsset` gana `quoteCurrency()` (se deriva del propio `label`, ej. "BTC/USDT" → "USDT") para no duplicar ese dato en cada lugar que lo necesita.
 
