@@ -43,6 +43,8 @@ Código limpio y modular desde el día 1. Se actualizan los docs afectados en el
 - **Commits y push:** **siempre requieren autorización explícita de Marcelo.** No hacer `git commit` ni `git push` sin que él lo pida.
 - **Capital real:** ninguna decisión que involucre fondos reales (crear cuentas, generar API keys con permisos de trading, mover capital) se ejecuta sin autorización explícita y sin haber pasado antes por simulación/paper trading — ver [roadmap.md](roadmap.md).
 - **Entorno y herramientas:** cuando se adopta una herramienta, lenguaje, exchange o servicio, se registra en [entorno.md](entorno.md) — el inventario vivo de qué usamos y cómo, para no re-investigar.
+- **Headings sin paréntesis ni barras:** un heading como `## Fees (maker / taker)` complica innecesariamente el anchor. Los headings van solo con palabras y espacios (`## Fees`, `## Riesgo de custodia`); la aclaración entre paréntesis se mueve al cuerpo del texto.
+- **Links a un heading de más de una palabra:** Obsidian y GitHub/Quartz **no** generan el mismo anchor para un heading multi-palabra — Obsidian espera el texto tal cual (`#Order book`, con espacio), GitHub/Quartz generan un slug con guiones (`#order-book`). No hay un único formato que ande igual en los tres. Como se trabaja mayormente desde Obsidian, se prioriza ese formato — texto exacto del heading, envuelto en `<>` para que el espacio no rompa la sintaxis Markdown: `[order book](<../glosario.md#Order book>)`. En GitHub/Quartz el link sigue funcionando (abre el archivo), solo no salta al punto exacto. Los headings de **una sola palabra** (`#fees`, `#spread`) no tienen este problema — se linkean como siempre, sin `<>`.
 
 ## Ramas (git)
 
