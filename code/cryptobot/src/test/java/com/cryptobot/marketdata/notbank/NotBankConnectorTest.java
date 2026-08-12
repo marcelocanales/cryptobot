@@ -1,13 +1,16 @@
 package com.cryptobot.marketdata.notbank;
 
+import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NotBankConnectorTest {
 
@@ -42,5 +45,28 @@ class NotBankConnectorTest {
         // side=1 son asks: el más bajo debe quedar primero después de ordenar.
         assertEquals(new BigDecimal("45.4984"), book.bestAsk().price());
         assertEquals(new BigDecimal("24.886"), book.bestAsk().quantity());
+    }
+
+    // Respuesta real (recortada, con un campo IsDisable agregado a mano para
+    // probar el filtro — en vivo, al 2026-08-12, ningún instrumento estaba
+    // deshabilitado), capturada con curl contra POST /AP/GetInstruments.
+    private static final String REAL_INSTRUMENTS_RESPONSE = """
+        [
+          {"InstrumentId":2,"Symbol":"AAVEBTC","Product1Symbol":"AAVE","Product2Symbol":"BTC","IsDisable":false},
+          {"InstrumentId":63,"Symbol":"LTCUSDT","Product1Symbol":"LTC","Product2Symbol":"USDT","IsDisable":false},
+          {"InstrumentId":103,"Symbol":"USDTCLP","Product1Symbol":"USDT","Product2Symbol":"CLP","IsDisable":false},
+          {"InstrumentId":999,"Symbol":"DEADCOIN_USDT","Product1Symbol":"DEADCOIN","Product2Symbol":"USDT","IsDisable":true}
+        ]
+        """;
+
+    @Test
+    void parsesRealInstrumentsResponseAndFiltersOutDisabled() throws Exception {
+        JsonNode instruments = new ObjectMapper().readTree(REAL_INSTRUMENTS_RESPONSE);
+        List<Market> markets = new NotBankConnector().parseMarkets(instruments);
+
+        assertEquals(3, markets.size());
+        assertTrue(markets.contains(new Market("LTC", "USDT", "LTCUSDT")));
+        assertTrue(markets.contains(new Market("USDT", "CLP", "USDTCLP")));
+        assertTrue(markets.stream().noneMatch(m -> m.symbol().equals("DEADCOIN_USDT")));
     }
 }
