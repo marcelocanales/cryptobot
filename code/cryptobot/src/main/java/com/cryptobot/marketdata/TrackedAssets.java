@@ -5,90 +5,84 @@ import com.cryptobot.marketdata.notbank.NotBankConnector;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 import com.cryptobot.marketdata.yobit.YobitConnector;
 
-import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static com.cryptobot.marketdata.TrackedAsset.Venue;
 
 /**
  * Registro único de qué activo cotiza en qué exchange, con qué símbolo —
  * usado tanto por {@code OverlapCheck} (foto única) como por
- * {@code SpreadWatcher} (corrida continua). Antes esta información vivía
- * duplicada entre los dos (8 pares en uno, 11 en el otro, sin ser el mismo
- * conjunto) — Sprint 0007.
- *
- * Universo de activos y sus exchanges, verificado en vivo:
- * - BTC/ETH/LTC/DOGE/SHIB cotizan en USDT en Poloniex, NotBank y YoBit.
- * - AAVE/GRAM/XTZ cotizan en USDT en Poloniex y NotBank — YoBit no los
- *   lista (confirmado contra {@code GET /api/3/info} en el Sprint 0007).
- * - BTC/ETH/LTC-BTC cotizan en Buda, y NotBank los tiene sin necesidad de
- *   convertir moneda (BTC-CLP, ETH-CLP, LTC-BTC — ver Sprint 0005).
+ * {@code SpreadWatcher} (corrida continua). Antes esta información era una
+ * lista fija de 11 activos elegidos a mano (Sprint 0007) — desde el Sprint
+ * 0017 se descubre en vivo contra las 4 APIs, mismo principio ya aplicado a
+ * lo triangular ({@code TriangleFinder}/{@code CrossTriangleFinder}).
  */
 public final class TrackedAssets {
 
-    // Umbral de valor nocional mínimo por moneda de cotización — un "mejor
-    // precio" que no lo alcanza puede ser una orden vieja y chica aislada,
-    // no liquidez real (XTZ en Poloniex, Sprint 0003/0004). ~USD 50
-    // equivalente en cada moneda: USDT 1:1, CLP ~950/USD, BTC ~64000 USD/BTC.
-    private static final BigDecimal MIN_NOTIONAL_USDT = new BigDecimal("50");
-    private static final BigDecimal MIN_NOTIONAL_CLP = new BigDecimal("47500");
-    private static final BigDecimal MIN_NOTIONAL_BTC = new BigDecimal("0.00078");
+    // Monedas de cotización soportadas — las mismas para las que
+    // MinNotional ya tiene un umbral verificado. Se excluyen a propósito
+    // COP/PEN/ARS/BRL (existen en NotBank/Buda): no hay un umbral de
+    // nocional confirmado para ellas, y usar el default de USDT asumiría
+    // que valen lo mismo, que no es cierto (Sprint 0017).
+    private static final Set<String> SUPPORTED_QUOTES = Set.of("USDT", "USDC", "CLP", "BTC");
 
     private TrackedAssets() {
     }
 
     public static List<TrackedAsset> all(PoloniexConnector poloniex, NotBankConnector notbank,
                                           BudaConnector buda, YobitConnector yobit) {
-        return List.of(
-            new TrackedAsset("BTC/USDT", MIN_NOTIONAL_USDT, List.of(
-                new Venue(poloniex, "BTC_USDT"),
-                new Venue(notbank, "BTCUSDT"),
-                new Venue(yobit, "btc_usdt")
-            )),
-            new TrackedAsset("ETH/USDT", MIN_NOTIONAL_USDT, List.of(
-                new Venue(poloniex, "ETH_USDT"),
-                new Venue(notbank, "ETHUSDT"),
-                new Venue(yobit, "eth_usdt")
-            )),
-            new TrackedAsset("LTC/USDT", MIN_NOTIONAL_USDT, List.of(
-                new Venue(poloniex, "LTC_USDT"),
-                new Venue(notbank, "LTCUSDT"),
-                new Venue(yobit, "ltc_usdt")
-            )),
-            new TrackedAsset("DOGE/USDT", MIN_NOTIONAL_USDT, List.of(
-                new Venue(poloniex, "DOGE_USDT"),
-                new Venue(notbank, "DOGEUSDT"),
-                new Venue(yobit, "doge_usdt")
-            )),
-            new TrackedAsset("SHIB/USDT", MIN_NOTIONAL_USDT, List.of(
-                new Venue(poloniex, "SHIB_USDT"),
-                new Venue(notbank, "SHIBUSDT"),
-                new Venue(yobit, "shib_usdt")
-            )),
-            new TrackedAsset("AAVE/USDT", MIN_NOTIONAL_USDT, List.of(
-                new Venue(poloniex, "AAVE_USDT"),
-                new Venue(notbank, "AAVEUSDT")
-            )),
-            new TrackedAsset("GRAM/USDT", MIN_NOTIONAL_USDT, List.of(
-                new Venue(poloniex, "GRAM_USDT"),
-                new Venue(notbank, "GRAMUSDT")
-            )),
-            new TrackedAsset("XTZ/USDT", MIN_NOTIONAL_USDT, List.of(
-                new Venue(poloniex, "XTZ_USDT"),
-                new Venue(notbank, "XTZUSDT")
-            )),
-            new TrackedAsset("BTC/CLP", MIN_NOTIONAL_CLP, List.of(
-                new Venue(buda, "btc-clp"),
-                new Venue(notbank, "BTCCLP")
-            )),
-            new TrackedAsset("ETH/CLP", MIN_NOTIONAL_CLP, List.of(
-                new Venue(buda, "eth-clp"),
-                new Venue(notbank, "ETHCLP")
-            )),
-            new TrackedAsset("LTC/BTC", MIN_NOTIONAL_BTC, List.of(
-                new Venue(buda, "ltc-btc"),
-                new Venue(notbank, "LTCBTC")
-            ))
-        );
+        List<CrossVenue> venues = new ArrayList<>();
+        for (Market m : poloniex.fetchMarkets()) {
+            venues.add(new CrossVenue(poloniex, m));
+        }
+        for (Market m : notbank.fetchMarkets()) {
+            venues.add(new CrossVenue(notbank, m));
+        }
+        for (Market m : buda.fetchMarkets()) {
+            venues.add(new CrossVenue(buda, m));
+        }
+        for (Market m : yobit.fetchMarkets()) {
+            venues.add(new CrossVenue(yobit, m));
+        }
+        return discover(venues);
+    }
+
+    /**
+     * Agrupa por "{base}/{quote}" exacto — a diferencia de
+     * {@code TriangleFinder}, acá el orden importa, no es una pata de
+     * triángulo intercambiable. Un activo entra a la lista final solo si
+     * aparece en 2 o más exchanges: con uno solo no hay nada que comparar.
+     */
+    static List<TrackedAsset> discover(List<CrossVenue> venues) {
+        Map<String, List<CrossVenue>> byLabel = new LinkedHashMap<>();
+        for (CrossVenue v : venues) {
+            Market m = v.market();
+            if (!SUPPORTED_QUOTES.contains(m.quote())) {
+                continue;
+            }
+            String label = m.base() + "/" + m.quote();
+            byLabel.computeIfAbsent(label, k -> new ArrayList<>()).add(v);
+        }
+
+        List<TrackedAsset> result = new ArrayList<>();
+        for (Map.Entry<String, List<CrossVenue>> entry : byLabel.entrySet()) {
+            List<CrossVenue> group = entry.getValue();
+            long distinctExchanges = group.stream().map(CrossVenue::exchangeName).distinct().count();
+            if (distinctExchanges < 2) {
+                continue;
+            }
+            String label = entry.getKey();
+            String quote = label.substring(label.indexOf('/') + 1);
+            List<Venue> venueList = new ArrayList<>();
+            for (CrossVenue v : group) {
+                venueList.add(new Venue(v.connector(), v.market().symbol()));
+            }
+            result.add(new TrackedAsset(label, MinNotional.forCurrency(quote), venueList));
+        }
+        return result;
     }
 }

@@ -65,6 +65,7 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 | [`0014`](sprints/sprint_0014.md) | Fetches en paralelo (ParallelFetch, aplicado a todo)           | ✅ Cerrado      |
 | [`0015`](sprints/sprint_0015.md) | Funding rate cash-and-carry, primer corte (Poloniex + NotBank) | ✅ Cerrado      |
 | [`0016`](sprints/sprint_0016.md) | CashAndCarryWatcher — monitoreo continuo cash-and-carry        | ✅ Cerrado      |
+| [`0017`](sprints/sprint_0017.md) | TrackedAssets dinámico — descubrir pares, no 11 elegidos a mano | ✅ Cerrado      |
 
 ### Estados
 

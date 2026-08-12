@@ -1,6 +1,8 @@
 package com.cryptobot.watch;
 
+import com.cryptobot.marketdata.CrossVenue;
 import com.cryptobot.marketdata.Market;
+import com.cryptobot.marketdata.MinNotional;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.notbank.NotBankConnector;
@@ -8,8 +10,6 @@ import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 import com.cryptobot.triangular.CrossTriangle;
 import com.cryptobot.triangular.CrossTriangleFinder;
 import com.cryptobot.triangular.CrossTriangleSpread;
-import com.cryptobot.triangular.CrossVenue;
-import com.cryptobot.triangular.TriangleSpread;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -113,7 +113,7 @@ public class CrossTriangleWatcher {
                     String key = entry.getKey();
                     OrderBook book = entry.getValue();
                     CrossVenue v = venueByKey.get(key);
-                    var minNotional = TriangleSpread.minNotionalFor(v.market().quote());
+                    var minNotional = MinNotional.forCurrency(v.market().quote());
                     var bid = book.bestBidAbove(minNotional);
                     var ask = book.bestAskAbove(minNotional);
                     if (bid != null) {

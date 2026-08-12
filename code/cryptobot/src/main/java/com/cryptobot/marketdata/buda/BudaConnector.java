@@ -2,6 +2,7 @@ package com.cryptobot.marketdata.buda;
 
 import com.cryptobot.marketdata.ExchangeApiException;
 import com.cryptobot.marketdata.ExchangeConnector;
+import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.PriceLevel;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -70,6 +71,63 @@ public class BudaConnector implements ExchangeConnector {
         }
 
         return parseOrderBook(symbol, response.body());
+    }
+
+    /**
+     * Lista todos los mercados activos — hace falta para descubrir activos
+     * compartidos entre exchanges en vez de tenerlos hardcodeados (Sprint
+     * 0017), mismo propósito que {@code PoloniexConnector.fetchMarkets()}
+     * desde el Sprint 0009.
+     */
+    public List<Market> fetchMarkets() {
+        var uri = URI.create(BASE_URL + "/markets");
+        var request = HttpRequest.newBuilder(uri)
+            .timeout(Duration.ofSeconds(10))
+            .GET()
+            .build();
+
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new ExchangeApiException("No se pudo conectar a Buda para listar mercados", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ExchangeApiException("Consulta a Buda interrumpida al listar mercados", e);
+        }
+
+        if (response.statusCode() != 200) {
+            throw new ExchangeApiException(
+                "Buda respondió " + response.statusCode() + " al listar mercados: " + response.body());
+        }
+
+        return parseMarkets(response.body());
+    }
+
+    // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
+    List<Market> parseMarkets(String json) {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(json);
+        } catch (IOException e) {
+            throw new ExchangeApiException("Respuesta de Buda no es JSON válido para /markets: " + json, e);
+        }
+        JsonNode markets = root.get("markets");
+        if (markets == null || !markets.isArray()) {
+            throw new ExchangeApiException("Respuesta de Buda sin lista de mercados esperada: " + json);
+        }
+
+        List<Market> result = new ArrayList<>();
+        for (JsonNode m : markets) {
+            if (m.path("disabled").asBoolean(false)) {
+                continue;
+            }
+            result.add(new Market(
+                m.get("base_currency").asText(),
+                m.get("quote_currency").asText(),
+                m.get("name").asText()));
+        }
+        return result;
     }
 
     // package-private, no private: testeado directo con JSON real, sin mockear HTTP.

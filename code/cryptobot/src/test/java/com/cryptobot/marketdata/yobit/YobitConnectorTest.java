@@ -1,13 +1,16 @@
 package com.cryptobot.marketdata.yobit;
 
 import com.cryptobot.marketdata.ExchangeApiException;
+import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class YobitConnectorTest {
 
@@ -45,5 +48,24 @@ class YobitConnectorTest {
     void invalidPairIsAnErrorEvenWithHttp200() {
         assertThrows(ExchangeApiException.class,
             () -> new YobitConnector().parseOrderBook("xxx_usd", INVALID_PAIR_RESPONSE));
+    }
+
+    // Respuesta real (recortada), capturada con curl contra GET /info el 2026-08-12.
+    private static final String REAL_INFO_RESPONSE = """
+        {"server_time":1786600000,"pairs":{
+          "ltc_usdt":{"decimal_places":8,"min_price":1e-08,"max_price":10000,"hidden":0,"fee":0.2},
+          "btc_usdt":{"decimal_places":8,"min_price":1e-08,"max_price":10000000,"hidden":0,"fee":0.2},
+          "xxx_usdt":{"decimal_places":8,"min_price":1e-08,"max_price":10000,"hidden":1,"fee":0.2}
+        }}
+        """;
+
+    @Test
+    void parsesRealInfoResponseAndFiltersOutHidden() {
+        List<Market> markets = new YobitConnector().parseMarkets(REAL_INFO_RESPONSE);
+
+        assertEquals(2, markets.size());
+        assertTrue(markets.contains(new Market("LTC", "USDT", "ltc_usdt")));
+        assertTrue(markets.contains(new Market("BTC", "USDT", "btc_usdt")));
+        assertTrue(markets.stream().noneMatch(m -> m.symbol().equals("xxx_usdt")));
     }
 }

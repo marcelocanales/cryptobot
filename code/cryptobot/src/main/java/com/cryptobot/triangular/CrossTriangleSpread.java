@@ -1,7 +1,9 @@
 package com.cryptobot.triangular;
 
+import com.cryptobot.marketdata.CrossVenue;
 import com.cryptobot.marketdata.ExchangeFees;
 import com.cryptobot.marketdata.Market;
+import com.cryptobot.marketdata.MinNotional;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.PriceLevel;
 
@@ -84,7 +86,7 @@ public final class CrossTriangleSpread {
             if (book == null) {
                 continue;
             }
-            BigDecimal minNotional = TriangleSpread.minNotionalFor(market.quote());
+            BigDecimal minNotional = MinNotional.forCurrency(market.quote());
 
             BigDecimal rate;
             String side;

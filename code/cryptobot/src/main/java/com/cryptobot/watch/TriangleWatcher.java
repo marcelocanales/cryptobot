@@ -1,6 +1,7 @@
 package com.cryptobot.watch;
 
 import com.cryptobot.marketdata.Market;
+import com.cryptobot.marketdata.MinNotional;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
@@ -95,7 +96,7 @@ public class TriangleWatcher {
                     String symbol = entry.getKey();
                     OrderBook book = entry.getValue();
                     Market market = marketBySymbol.get(symbol);
-                    var minNotional = TriangleSpread.minNotionalFor(market.quote());
+                    var minNotional = MinNotional.forCurrency(market.quote());
                     var bid = book.bestBidAbove(minNotional);
                     var ask = book.bestAskAbove(minNotional);
                     if (bid != null) {

@@ -1,5 +1,6 @@
 package com.cryptobot.triangular;
 
+import com.cryptobot.marketdata.CrossVenue;
 import com.cryptobot.marketdata.ExchangeConnector;
 import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
