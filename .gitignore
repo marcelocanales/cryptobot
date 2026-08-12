@@ -7,6 +7,9 @@
 target/
 *.class
 
+# Datos capturados en runtime (no es código ni doc — se genera solo)
+data/
+
 # OS / editors
 .DS_Store
 Thumbs.db
