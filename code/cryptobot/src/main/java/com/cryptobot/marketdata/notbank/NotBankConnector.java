@@ -2,6 +2,7 @@ package com.cryptobot.marketdata.notbank;
 
 import com.cryptobot.marketdata.ExchangeApiException;
 import com.cryptobot.marketdata.ExchangeConnector;
+import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.PriceLevel;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -106,6 +107,38 @@ public class NotBankConnector implements ExchangeConnector {
         asks.sort((a, b) -> a.price().compareTo(b.price()));
 
         return new OrderBook("NotBank", symbol, timestamp, bids, asks);
+    }
+
+    /**
+     * Lista todos los mercados activos (no deshabilitados) — hace falta para
+     * descubrir triángulos cross-exchange en vez de tenerlos hardcodeados
+     * (Sprint 0012), mismo propósito que {@code PoloniexConnector.fetchMarkets()}.
+     * Llama a {@code /AP/GetInstruments} de nuevo (no comparte caché con
+     * {@link #resolveInstrumentId}) — se usa una sola vez por corrida, no vale
+     * la pena complicar el cacheo por eso.
+     */
+    public List<Market> fetchMarkets() {
+        JsonNode instruments = post("/AP/GetInstruments", Map.of("OMSId", OMS_ID));
+        return parseMarkets(instruments);
+    }
+
+    // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
+    List<Market> parseMarkets(JsonNode instruments) {
+        if (instruments == null || !instruments.isArray()) {
+            throw new ExchangeApiException("Respuesta de NotBank sin lista de instrumentos esperada");
+        }
+
+        List<Market> markets = new ArrayList<>();
+        for (JsonNode instrument : instruments) {
+            if (instrument.path("IsDisable").asBoolean(false)) {
+                continue;
+            }
+            markets.add(new Market(
+                instrument.get("Product1Symbol").asText(),
+                instrument.get("Product2Symbol").asText(),
+                instrument.get("Symbol").asText()));
+        }
+        return markets;
     }
 
     private synchronized int resolveInstrumentId(String symbol) {

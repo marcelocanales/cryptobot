@@ -22,10 +22,10 @@ import java.util.Optional;
  */
 public final class TriangleSpread {
 
-    // Mismos umbrales que TrackedAssets — Poloniex solo tiene patas en USDT o BTC
-    // entre los 17 triángulos anclados en USDT que existen hoy (Sprint 0009).
+    // Mismos umbrales que TrackedAssets/OverlapCheck (Sprint 0006).
     private static final BigDecimal MIN_NOTIONAL_USDT = new BigDecimal("50");
     private static final BigDecimal MIN_NOTIONAL_BTC = new BigDecimal("0.00078");
+    private static final BigDecimal MIN_NOTIONAL_CLP = new BigDecimal("47500");
     private static final MathContext MC = new MathContext(20);
 
     public record Result(List<String> path, List<Leg> legs, BigDecimal grossPct, BigDecimal netPct) {
@@ -99,8 +99,17 @@ public final class TriangleSpread {
             .round(new MathContext(8));
     }
 
-    /** Público: {@code TriangleWatcher} lo reusa para observar staleness con el mismo umbral. */
+    /**
+     * Público: {@code TriangleWatcher} y {@code CrossTriangleSpread} lo reusan
+     * para el mismo umbral. CLP se suma en el Sprint 0012 — con NotBank en el
+     * universo de exchanges, una pata puede terminar cotizada en CLP (ej.
+     * BTCCLP), no solo en USDT o BTC.
+     */
     public static BigDecimal minNotionalFor(String currency) {
-        return "BTC".equals(currency) ? MIN_NOTIONAL_BTC : MIN_NOTIONAL_USDT;
+        return switch (currency) {
+            case "BTC" -> MIN_NOTIONAL_BTC;
+            case "CLP" -> MIN_NOTIONAL_CLP;
+            default -> MIN_NOTIONAL_USDT;
+        };
     }
 }

@@ -2,7 +2,19 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0010, cerrado)
+## Qué existe hoy (Sprint 0012, cerrado)
+
+Primer código para la **hipótesis 03 (triangular cross-exchange)** — reparte las 3 patas de un ciclo entre exchanges distintos, en vez de exigir que las tres vivan en el mismo (hipótesis 02). Nuevo, sobre Poloniex + NotBank:
+- `CrossVenue` (en `triangular`): un mercado concreto en un exchange concreto — análogo a `TrackedAsset.Venue`, pero con el `Market` (base/quote) adjunto, no solo el símbolo.
+- `CrossTriangle`: como `Triangle`, pero cada pata tiene una **lista** de exchanges candidatos, no uno solo. Gana `isNecessityCycle()` — distingue si el ciclo existe completo en al menos un exchange individual ("por optimización") o si ningún exchange lo tiene completo ("por necesidad", el caso que el triangular intra-exchange no podría operar bajo ninguna circunstancia).
+- `CrossTriangleFinder`: mismo algoritmo que `TriangleFinder`, pero opera sobre la **unión** de mercados de varios exchanges, agrupando por par de monedas en vez de quedarse con un mercado por par — así aparecen los ciclos "por necesidad".
+- `CrossTriangleSpread`: mismo principio de composición que `TriangleSpread`, pero en cada pata, si hay más de un exchange candidato, evalúa todos y toma el de mejor resultado **neto** (no el de mejor precio bruto — puede perder por tener una fee más alta).
+- `CrossTriangleCheck` (en `com.cryptobot`): foto en vivo, marca cada triángulo como necesidad/optimización.
+- `NotBankConnector` gana `fetchMarkets()` (mismo patrón que `PoloniexConnector` desde el Sprint 0009). `TriangleSpread.minNotionalFor` suma CLP (con NotBank en el universo, una pata puede terminar cotizada ahí).
+
+**Hallazgo de la verificación en vivo, corregido en el propio código:** un resultado con bruto de +2.158.104% resultó ser un choque de tickers — el "BOB" de Poloniex es un token cripto barato, el "BOB" de NotBank es el Boliviano (moneda fiat) — dos activos distintos que comparten el mismo código de 3 letras. `CrossTriangleFinder` los trató como la misma moneda porque solo compara el string. `CrossTriangleCheck` marca cualquier resultado con `|bruto| > 50%` como implausible en vez de reportarlo como señal real — parche a nivel de reporte, no una solución de identidad de activos (queda en el backlog).
+
+## Qué existía en el Sprint 0010
 
 `TriangleWatcher` — la versión continua de `TriangleCheck`, mismo salto que `SpreadWatcher` fue para `OverlapCheck` en su momento (Sprint 0002→0003). Descubre los 23 triángulos una sola vez al arrancar (los mercados de un exchange no cambian en el rato que dura una corrida), y en cada ciclo pide cada uno de los ~40 order books únicos una sola vez, evalúa las dos direcciones de los 23 triángulos, y reusa `StalenessTracker` tal cual para marcar patas de precio congelado.
 
