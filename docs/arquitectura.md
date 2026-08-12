@@ -2,7 +2,20 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0016, cerrado)
+## Qué existe hoy (Sprint 0017, cerrado)
+
+`TrackedAssets.all(...)` (hipótesis 01, usada por `SpreadWatcher`/`OverlapCheck`) dejó de devolver una lista fija de 11 activos elegidos a mano — ahora **descubre** en vivo qué activos cotizan en 2 o más de los 4 exchanges, mismo principio ya aplicado a lo triangular (`TriangleFinder`/`CrossTriangleFinder`, Sprint 0009/0012):
+- `BudaConnector`/`YobitConnector` ganan `fetchMarkets()` (mismo patrón que `PoloniexConnector`/`NotBankConnector`) — Buda vía `GET /markets` (filtra `disabled`), YoBit vía `GET /info` (filtra `hidden`, symbol = la propia key del par, confirmado en el Sprint 0007 que separar por `_` es seguro).
+- `TrackedAssets.discover(List<CrossVenue>)` (testeable con datos sintéticos, sin HTTP): agrupa por `"{base}/{quote}"` **exacto** — a diferencia de un triángulo, acá el orden de la moneda importa, no se normaliza. Un activo entra solo si aparece en 2+ exchanges distintos. Monedas de cotización soportadas: USDT, USDC, CLP, BTC — las mismas para las que `MinNotional` ya tiene umbral verificado; se excluyen a propósito COP/PEN/ARS/BRL (existen en NotBank/Buda) por no tener un umbral de nocional confirmado — usar el default de USDT asumiría que valen lo mismo, que no es cierto.
+- `TrackedAssets.all(poloniex, notbank, buda, yobit)` — misma firma que antes, ahora llama `fetchMarkets()` de los 4 y arma `CrossVenue` para pasarle a `discover(...)`. `SpreadWatcher`/`OverlapCheck` no cambiaron.
+
+**Dos refactors de arquitectura, necesarios antes de lo anterior** (evitar que `marketdata`, la capa de base, dependiera de `triangular`):
+- `CrossVenue` se mueve de `com.cryptobot.triangular` a `com.cryptobot.marketdata` — con `TrackedAssets` como su segundo consumidor (además de lo cross-triangular), correspondía vivir en la capa base.
+- `TriangleSpread.minNotionalFor` se extrae a `com.cryptobot.marketdata.MinNotional.forCurrency(currency)` — mismo motivo, `TrackedAssets` sería un 4to consumidor y no puede depender de `triangular`.
+
+**Medido en vivo, no proyectado:** la corrida real de `OverlapCheck` con el nuevo descubrimiento encontró **67 activos** (vs. los 11 hardcodeados hasta el Sprint 0016) — los 11 originales siguen todos presentes, nada se perdió. Aparece un hallazgo de datos, no un bug: dos pares de YoBit (`comp_btc`, `shib_btc`) no tienen liquidez del lado bid — la API omite la clave `"bids"` en vez de mandar un array vacío — y el parser ya lo trata como error capturado por `ParallelFetch` (no crashea la corrida), consistente con el resto del proyecto.
+
+## Qué existía en el Sprint 0016
 
 `CashAndCarryWatcher` — versión continua de `CashAndCarryCheck`, mismo salto que `TriangleWatcher`/`CrossTriangleWatcher` fueron para sus respectivos checks. Descubre los perpetuos una sola vez al arrancar, corre en loop de 30s con `ParallelFetch`, y reusa `StalenessTracker` — pero solo en las patas de **precio** (spot ask, perpetuo bid), no en el funding rate: ese cambia por diseño cada 8h, marcarlo "congelado" dentro de esa ventana sería ruido, no una señal de dato malo. CSV largo con basis/funding/funding anualizado/fees de entrada/breakeven por ciclo — mismo criterio de "no colapsar en un solo número" que ya tiene `CashAndCarrySpread`.
 

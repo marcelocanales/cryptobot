@@ -8,7 +8,7 @@ import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 import com.cryptobot.triangular.CrossTriangle;
 import com.cryptobot.triangular.CrossTriangleFinder;
 import com.cryptobot.triangular.CrossTriangleSpread;
-import com.cryptobot.triangular.CrossVenue;
+import com.cryptobot.marketdata.CrossVenue;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;

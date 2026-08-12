@@ -1,5 +1,7 @@
 package com.cryptobot.triangular;
 
+import com.cryptobot.marketdata.CrossVenue;
+
 import java.util.List;
 
 /**

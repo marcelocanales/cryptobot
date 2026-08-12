@@ -2,6 +2,7 @@ package com.cryptobot.marketdata.yobit;
 
 import com.cryptobot.marketdata.ExchangeApiException;
 import com.cryptobot.marketdata.ExchangeConnector;
+import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.PriceLevel;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -17,7 +18,9 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Read-only connector for YoBit's public spot market data API — no auth, no key.
@@ -80,6 +83,67 @@ public class YobitConnector implements ExchangeConnector {
         }
 
         return parseOrderBook(symbol, response.body());
+    }
+
+    /**
+     * Lista todos los pares no ocultos — hace falta para descubrir activos
+     * compartidos entre exchanges en vez de tenerlos hardcodeados (Sprint
+     * 0017). La key de cada par ya es el símbolo nativo (ej. "ltc_usdt") —
+     * confirmado en el Sprint 0007 que los 9.033 pares tienen exactamente
+     * un underscore, separar en base/quote es seguro.
+     */
+    public List<Market> fetchMarkets() {
+        var uri = URI.create(BASE_URL + "/info");
+        var request = HttpRequest.newBuilder(uri)
+            .timeout(Duration.ofSeconds(10))
+            .GET()
+            .build();
+
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new ExchangeApiException("No se pudo conectar a YoBit para listar pares", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ExchangeApiException("Consulta a YoBit interrumpida al listar pares", e);
+        }
+
+        if (response.statusCode() != 200) {
+            throw new ExchangeApiException(
+                "YoBit respondió " + response.statusCode() + " al listar pares: " + response.body());
+        }
+
+        return parseMarkets(response.body());
+    }
+
+    // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
+    List<Market> parseMarkets(String json) {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(json);
+        } catch (IOException e) {
+            throw new ExchangeApiException("Respuesta de YoBit no es JSON válido para /info: " + json, e);
+        }
+        JsonNode pairs = root.get("pairs");
+        if (pairs == null) {
+            throw new ExchangeApiException("Respuesta de YoBit sin pares esperados: " + json);
+        }
+
+        List<Market> result = new ArrayList<>();
+        Iterator<Map.Entry<String, JsonNode>> fields = pairs.fields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> entry = fields.next();
+            if (entry.getValue().path("hidden").asInt(0) == 1) {
+                continue;
+            }
+            String[] parts = entry.getKey().split("_", 2);
+            if (parts.length != 2) {
+                continue; // no debería pasar (confirmado en vivo, Sprint 0007), defensivo igual
+            }
+            result.add(new Market(parts[0].toUpperCase(), parts[1].toUpperCase(), entry.getKey()));
+        }
+        return result;
     }
 
     // package-private, no private: testeado directo con JSON real, sin mockear HTTP.

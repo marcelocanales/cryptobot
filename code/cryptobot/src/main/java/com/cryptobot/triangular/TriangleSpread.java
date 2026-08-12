@@ -2,6 +2,7 @@ package com.cryptobot.triangular;
 
 import com.cryptobot.marketdata.ExchangeFees;
 import com.cryptobot.marketdata.Market;
+import com.cryptobot.marketdata.MinNotional;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.PriceLevel;
 
@@ -22,10 +23,6 @@ import java.util.Optional;
  */
 public final class TriangleSpread {
 
-    // Mismos umbrales que TrackedAssets/OverlapCheck (Sprint 0006).
-    private static final BigDecimal MIN_NOTIONAL_USDT = new BigDecimal("50");
-    private static final BigDecimal MIN_NOTIONAL_BTC = new BigDecimal("0.00078");
-    private static final BigDecimal MIN_NOTIONAL_CLP = new BigDecimal("47500");
     private static final MathContext MC = new MathContext(20);
 
     public record Result(List<String> path, List<Leg> legs, BigDecimal grossPct, BigDecimal netPct) {
@@ -71,7 +68,7 @@ public final class TriangleSpread {
                 return Optional.empty();
             }
 
-            BigDecimal minNotional = minNotionalFor(market.quote());
+            BigDecimal minNotional = MinNotional.forCurrency(market.quote());
             BigDecimal rate;
             if (from.equals(market.base())) {
                 PriceLevel bid = book.bestBidAbove(minNotional);
@@ -99,17 +96,4 @@ public final class TriangleSpread {
             .round(new MathContext(8));
     }
 
-    /**
-     * Público: {@code TriangleWatcher} y {@code CrossTriangleSpread} lo reusan
-     * para el mismo umbral. CLP se suma en el Sprint 0012 — con NotBank en el
-     * universo de exchanges, una pata puede terminar cotizada en CLP (ej.
-     * BTCCLP), no solo en USDT o BTC.
-     */
-    public static BigDecimal minNotionalFor(String currency) {
-        return switch (currency) {
-            case "BTC" -> MIN_NOTIONAL_BTC;
-            case "CLP" -> MIN_NOTIONAL_CLP;
-            default -> MIN_NOTIONAL_USDT;
-        };
-    }
 }

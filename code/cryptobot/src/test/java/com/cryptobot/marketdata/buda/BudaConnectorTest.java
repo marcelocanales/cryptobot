@@ -1,13 +1,16 @@
 package com.cryptobot.marketdata.buda;
 
 import com.cryptobot.marketdata.ExchangeApiException;
+import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BudaConnectorTest {
 
@@ -46,5 +49,25 @@ class BudaConnectorTest {
     void missingOrderBookIsAnError() {
         assertThrows(ExchangeApiException.class,
             () -> new BudaConnector().parseOrderBook("xxx-clp", NOT_FOUND_RESPONSE));
+    }
+
+    // Respuesta real (recortada), capturada con curl contra GET /markets el 2026-08-12.
+    private static final String REAL_MARKETS_RESPONSE = """
+        {"markets":[
+          {"id":"BTC-CLP","name":"btc-clp","base_currency":"BTC","quote_currency":"CLP","disabled":false},
+          {"id":"ETH-CLP","name":"eth-clp","base_currency":"ETH","quote_currency":"CLP","disabled":false},
+          {"id":"USDT-CLP","name":"usdt-clp","base_currency":"USDT","quote_currency":"CLP","disabled":false},
+          {"id":"XXX-CLP","name":"xxx-clp","base_currency":"XXX","quote_currency":"CLP","disabled":true}
+        ]}
+        """;
+
+    @Test
+    void parsesRealMarketsResponseAndFiltersOutDisabled() {
+        List<Market> markets = new BudaConnector().parseMarkets(REAL_MARKETS_RESPONSE);
+
+        assertEquals(3, markets.size());
+        assertTrue(markets.contains(new Market("BTC", "CLP", "btc-clp")));
+        assertTrue(markets.contains(new Market("USDT", "CLP", "usdt-clp")));
+        assertTrue(markets.stream().noneMatch(m -> m.symbol().equals("xxx-clp")));
     }
 }
