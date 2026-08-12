@@ -2,7 +2,11 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0005, cerrado)
+## Qué existe hoy (Sprint 0006, cerrado)
+
+Se suma `ExchangeFees`: registro simple de la fee de taker real por exchange (Poloniex 0,20%, NotBank 0,60% estimado — pendiente de confirmar, Buda 0,80%, YoBit 0,20%; fuente de cada valor en [entorno.md](entorno.md)). Tanto `OverlapCheck` como `SpreadWatcher` restan la fee de ambas patas al spread bruto antes de decidir si algo es interesante — el modelo de ejecución asumido sigue siendo taker-taker (dos órdenes de mercado). `SpreadWatcher` suma dos columnas al CSV (`*_net_pct`) y el flag `REVISAR` ahora se dispara por spread **neto** positivo, no bruto. Cierra una brecha abierta desde el cierre del Sprint 0002: antes, un spread bruto positivo se descartaba a mano leyendo el número; ahora el programa ya dice si sobrevive a fees.
+
+## Qué existía en el Sprint 0005
 
 Se suman dos conectores nuevos: `BudaConnector` (Buda.com) y `YobitConnector` (YoBit) — mismo patrón `ExchangeConnector` que Poloniex/NotBank, sin cambiar nada de lo existente. Cada exchange tiene su propio formato de símbolo y su propia forma de mandar precios (Buda: string, igual que Poloniex; YoBit: número JSON, requiere `DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS` para no perder precisión). Se suma `OverlapCheck`: comparación en vivo, snapshot único (no continua todavía), de los pares donde estos exchanges overlapean con Poloniex/NotBank sin necesitar conversión de moneda — filtra por nocional mínimo igual que `SpreadWatcher`, con umbral distinto por moneda de cotización (USDT/CLP/BTC).
 

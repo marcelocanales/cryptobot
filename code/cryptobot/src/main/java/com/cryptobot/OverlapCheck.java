@@ -1,6 +1,7 @@
 package com.cryptobot;
 
 import com.cryptobot.marketdata.ExchangeConnector;
+import com.cryptobot.marketdata.ExchangeFees;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.PriceLevel;
 import com.cryptobot.marketdata.buda.BudaConnector;
@@ -69,8 +70,8 @@ public class OverlapCheck {
                 PriceLevel askB = bookB.bestAskAbove(pair.minNotional());
                 PriceLevel bidB = bookB.bestBidAbove(pair.minNotional());
 
-                checkDirection("Comprar en " + bookA.exchange() + ", vender en " + bookB.exchange(), askA, bidB);
-                checkDirection("Comprar en " + bookB.exchange() + ", vender en " + bookA.exchange(), askB, bidA);
+                checkDirection(bookA.exchange(), bookB.exchange(), askA, bidB);
+                checkDirection(bookB.exchange(), bookA.exchange(), askB, bidA);
             } catch (RuntimeException e) {
                 System.out.println("  ERROR: " + e.getMessage());
             }
@@ -78,16 +79,27 @@ public class OverlapCheck {
         }
     }
 
-    private static void checkDirection(String label, PriceLevel buyAt, PriceLevel sellAt) {
+    /**
+     * Neto, no bruto: al spread bruto se le resta la fee de taker de ambas
+     * patas (el modelo de ejecución asumido es taker-taker — dos órdenes de
+     * mercado, ver docs/roadmap.md). Un spread bruto positivo que no cubre
+     * las dos fees no es arbitraje, es ruido — desde el Sprint 0002 esto se
+     * venía descartando a mano, ahora lo calcula el propio programa.
+     */
+    private static void checkDirection(String buyExchange, String sellExchange, PriceLevel buyAt, PriceLevel sellAt) {
+        String label = "Comprar en " + buyExchange + ", vender en " + sellExchange;
         if (buyAt == null || sellAt == null) {
             System.out.println("  " + label + ": sin liquidez suficiente para el nocional mínimo");
             return;
         }
-        BigDecimal diff = sellAt.price().subtract(buyAt.price());
-        BigDecimal diffPct = percent(diff, buyAt.price());
-        String verdict = diff.signum() > 0 ? "posible spread bruto" : "pérdida — sin arbitraje";
+        BigDecimal grossPct = percent(sellAt.price().subtract(buyAt.price()), buyAt.price());
+        BigDecimal feesPct = ExchangeFees.takerFee(buyExchange).add(ExchangeFees.takerFee(sellExchange))
+            .multiply(BigDecimal.valueOf(100));
+        BigDecimal netPct = grossPct.subtract(feesPct);
+
+        String verdict = netPct.signum() > 0 ? "spread NETO positivo — arbitraje real" : "sin arbitraje neto";
         System.out.println("  " + label + ": comprar a " + buyAt.price() + ", vender a " + sellAt.price()
-            + " -> " + diff + " (" + diffPct + "%) — " + verdict);
+            + " -> bruto " + grossPct + "%, fees " + feesPct + "%, neto " + netPct + "% — " + verdict);
     }
 
     private static BigDecimal percent(BigDecimal amount, BigDecimal base) {

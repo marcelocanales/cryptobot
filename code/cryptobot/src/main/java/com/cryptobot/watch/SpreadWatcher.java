@@ -1,5 +1,6 @@
 package com.cryptobot.watch;
 
+import com.cryptobot.marketdata.ExchangeFees;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.PriceLevel;
 import com.cryptobot.marketdata.notbank.NotBankConnector;
@@ -45,6 +46,15 @@ public class SpreadWatcher {
     // real antes de evaluar un ciclo".
     private static final BigDecimal MIN_NOTIONAL_USDT = BigDecimal.valueOf(50);
 
+    // Fee de taker de ambas patas, sumada — el modelo de ejecución asumido es
+    // taker-taker (dos órdenes de mercado). Un spread bruto que no cubre esto
+    // no es arbitraje, es ruido; desde el Sprint 0006 el propio programa lo
+    // resta, no se descarta más a mano leyendo el CSV. Fuente de cada fee:
+    // docs/entorno.md.
+    private static final BigDecimal FEES_PCT_POLO_NB = ExchangeFees.takerFee("Poloniex")
+        .add(ExchangeFees.takerFee("NotBank"))
+        .multiply(BigDecimal.valueOf(100));
+
     // Detector de precio congelado: encontrado necesario en la corrida
     // nocturna del Sprint 0003 — XTZ en Poloniex pasó tamaño mínimo (arriba)
     // pero quedó exactamente en el mismo precio 7 horas seguidas: no es un
@@ -75,8 +85,9 @@ public class SpreadWatcher {
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
 
             writer.write("timestamp,pair,polo_bid,polo_ask,nb_bid,nb_ask,"
-                + "diff_buy_polo_sell_nb,diff_buy_polo_sell_nb_pct,"
-                + "diff_buy_nb_sell_polo,diff_buy_nb_sell_polo_pct,flag,stale,error");
+                + "diff_buy_polo_sell_nb,diff_buy_polo_sell_nb_pct,diff_buy_polo_sell_nb_net_pct,"
+                + "diff_buy_nb_sell_polo,diff_buy_nb_sell_polo_pct,diff_buy_nb_sell_polo_net_pct,"
+                + "flag,stale,error");
             writer.newLine();
             writer.flush();
 
@@ -122,7 +133,7 @@ public class SpreadWatcher {
             PriceLevel nbAsk = nbBook.bestAskAbove(MIN_NOTIONAL_USDT);
 
             if (poloBid == null || poloAsk == null || nbBid == null || nbAsk == null) {
-                writer.write(String.join(",", ts, pair.label(), "", "", "", "", "", "", "", "", "", "",
+                writer.write(String.join(",", ts, pair.label(), "", "", "", "", "", "", "", "", "", "", "", "",
                     "sin nivel con liquidez >= " + MIN_NOTIONAL_USDT + " USDT en algún lado"));
                 writer.newLine();
                 return 0;
@@ -137,17 +148,21 @@ public class SpreadWatcher {
 
             BigDecimal diffA = nbBid.price().subtract(poloAsk.price());   // comprar Poloniex, vender NotBank
             BigDecimal diffAPct = percent(diffA, poloAsk.price());
+            BigDecimal diffANetPct = diffAPct.subtract(FEES_PCT_POLO_NB);
             BigDecimal diffB = poloBid.price().subtract(nbAsk.price());   // comprar NotBank, vender Poloniex
             BigDecimal diffBPct = percent(diffB, nbAsk.price());
+            BigDecimal diffBNetPct = diffBPct.subtract(FEES_PCT_POLO_NB);
 
-            boolean interesting = diffA.signum() > 0 || diffB.signum() > 0;
+            // Neto, no bruto: un spread bruto positivo que no cubre la fee de
+            // taker de ambas patas no es arbitraje, es ruido (Sprint 0006).
+            boolean interesting = diffANetPct.signum() > 0 || diffBNetPct.signum() > 0;
 
             writer.write(String.join(",",
                 ts, pair.label(),
                 poloBid.price().toPlainString(), poloAsk.price().toPlainString(),
                 nbBid.price().toPlainString(), nbAsk.price().toPlainString(),
-                diffA.toPlainString(), diffAPct.toPlainString(),
-                diffB.toPlainString(), diffBPct.toPlainString(),
+                diffA.toPlainString(), diffAPct.toPlainString(), diffANetPct.toPlainString(),
+                diffB.toPlainString(), diffBPct.toPlainString(), diffBNetPct.toPlainString(),
                 interesting ? "REVISAR" : "",
                 staleLabel,
                 ""
@@ -156,14 +171,14 @@ public class SpreadWatcher {
 
             if (interesting) {
                 String staleNote = staleFields.isEmpty() ? "" : " [OJO: " + staleLabel + " congelado]";
-                System.out.println("  >> " + pair.label() + ": posible spread bruto — "
-                    + "compra Poloniex/vende NotBank " + diffAPct + "% | "
-                    + "compra NotBank/vende Poloniex " + diffBPct + "%" + staleNote);
+                System.out.println("  >> " + pair.label() + ": spread NETO positivo — "
+                    + "compra Poloniex/vende NotBank " + diffANetPct + "% neto (bruto " + diffAPct + "%) | "
+                    + "compra NotBank/vende Poloniex " + diffBNetPct + "% neto (bruto " + diffBPct + "%)" + staleNote);
             }
 
             return interesting ? 1 : 0;
         } catch (Exception e) {
-            writer.write(String.join(",", ts, pair.label(), "", "", "", "", "", "", "", "", "", "",
+            writer.write(String.join(",", ts, pair.label(), "", "", "", "", "", "", "", "", "", "", "", "",
                 escapeCsv(String.valueOf(e.getMessage()))));
             writer.newLine();
             System.out.println("  !! " + pair.label() + ": error — " + e.getMessage());
