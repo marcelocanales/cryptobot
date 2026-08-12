@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -44,11 +45,13 @@ public class SpreadWatcher {
     // real antes de evaluar un ciclo".
     private static final BigDecimal MIN_NOTIONAL_USDT = BigDecimal.valueOf(50);
 
-    // BTC/ETH/LTC como control (mercados grandes, se espera ~0). El resto
-    // son la hipótesis real — incluye pares que ya vimos con señales de
-    // datos no genuinos en NotBank (DOGE, AAVE, GRAM): dejarlos corriendo
-    // toda la noche también sirve para confirmar si son estáticos de
-    // verdad, no solo si hay spread.
+    // Detector de precio congelado: encontrado necesario en la corrida
+    // nocturna del Sprint 0003 — XTZ en Poloniex pasó tamaño mínimo (arriba)
+    // pero quedó exactamente en el mismo precio 7 horas seguidas: no es un
+    // book vivo, son órdenes abandonadas. 10 ciclos de 30s = 5 minutos sin
+    // moverse -> se marca como sospechoso (no se descarta, se marca).
+    private static final int STALE_AFTER_CYCLES = 10;
+
     private static final List<TrackedPair> PAIRS = List.of(
         new TrackedPair("BTC", "BTC_USDT", "BTCUSDT"),
         new TrackedPair("ETH", "ETH_USDT", "ETHUSDT"),
@@ -63,6 +66,7 @@ public class SpreadWatcher {
     public static void main(String[] args) throws IOException {
         var poloniex = new PoloniexConnector();
         var notbank = new NotBankConnector();
+        var staleness = new StalenessTracker(STALE_AFTER_CYCLES);
 
         Path outputPath = resolveOutputPath();
         Files.createDirectories(outputPath.getParent());
@@ -72,13 +76,14 @@ public class SpreadWatcher {
 
             writer.write("timestamp,pair,polo_bid,polo_ask,nb_bid,nb_ask,"
                 + "diff_buy_polo_sell_nb,diff_buy_polo_sell_nb_pct,"
-                + "diff_buy_nb_sell_polo,diff_buy_nb_sell_polo_pct,flag,error");
+                + "diff_buy_nb_sell_polo,diff_buy_nb_sell_polo_pct,flag,stale,error");
             writer.newLine();
             writer.flush();
 
             System.out.println("Registrando en: " + outputPath.toAbsolutePath());
             System.out.println("Pares: " + PAIRS.stream().map(TrackedPair::label).toList());
-            System.out.println("Intervalo: " + CYCLE_INTERVAL_SECONDS + "s. Ctrl+C para parar (lo ya registrado queda guardado).");
+            System.out.println("Intervalo: " + CYCLE_INTERVAL_SECONDS + "s. Precio congelado >= "
+                + STALE_AFTER_CYCLES + " ciclos se marca. Ctrl+C para parar (lo ya registrado queda guardado).");
             System.out.println();
 
             Runtime.getRuntime().addShutdownHook(new Thread(() ->
@@ -91,7 +96,7 @@ public class SpreadWatcher {
                 int flagged = 0;
 
                 for (TrackedPair pair : PAIRS) {
-                    flagged += processPair(poloniex, notbank, pair, writer);
+                    flagged += processPair(poloniex, notbank, pair, writer, staleness);
                 }
                 writer.flush();
 
@@ -104,7 +109,8 @@ public class SpreadWatcher {
     }
 
     private static int processPair(PoloniexConnector poloniex, NotBankConnector notbank,
-                                    TrackedPair pair, BufferedWriter writer) throws IOException {
+                                    TrackedPair pair, BufferedWriter writer, StalenessTracker staleness)
+            throws IOException {
         String ts = timestamp();
         try {
             OrderBook poloBook = poloniex.fetchOrderBook(pair.poloniexSymbol());
@@ -116,11 +122,18 @@ public class SpreadWatcher {
             PriceLevel nbAsk = nbBook.bestAskAbove(MIN_NOTIONAL_USDT);
 
             if (poloBid == null || poloAsk == null || nbBid == null || nbAsk == null) {
-                writer.write(String.join(",", ts, pair.label(), "", "", "", "", "", "", "", "", "",
+                writer.write(String.join(",", ts, pair.label(), "", "", "", "", "", "", "", "", "", "",
                     "sin nivel con liquidez >= " + MIN_NOTIONAL_USDT + " USDT en algún lado"));
                 writer.newLine();
                 return 0;
             }
+
+            List<String> staleFields = new ArrayList<>();
+            if (staleness.observe("Poloniex:" + pair.label() + ":bid", poloBid.price())) staleFields.add("polo_bid");
+            if (staleness.observe("Poloniex:" + pair.label() + ":ask", poloAsk.price())) staleFields.add("polo_ask");
+            if (staleness.observe("NotBank:" + pair.label() + ":bid", nbBid.price())) staleFields.add("nb_bid");
+            if (staleness.observe("NotBank:" + pair.label() + ":ask", nbAsk.price())) staleFields.add("nb_ask");
+            String staleLabel = String.join("|", staleFields);
 
             BigDecimal diffA = nbBid.price().subtract(poloAsk.price());   // comprar Poloniex, vender NotBank
             BigDecimal diffAPct = percent(diffA, poloAsk.price());
@@ -136,19 +149,21 @@ public class SpreadWatcher {
                 diffA.toPlainString(), diffAPct.toPlainString(),
                 diffB.toPlainString(), diffBPct.toPlainString(),
                 interesting ? "REVISAR" : "",
+                staleLabel,
                 ""
             ));
             writer.newLine();
 
             if (interesting) {
+                String staleNote = staleFields.isEmpty() ? "" : " [OJO: " + staleLabel + " congelado]";
                 System.out.println("  >> " + pair.label() + ": posible spread bruto — "
                     + "compra Poloniex/vende NotBank " + diffAPct + "% | "
-                    + "compra NotBank/vende Poloniex " + diffBPct + "%");
+                    + "compra NotBank/vende Poloniex " + diffBPct + "%" + staleNote);
             }
 
             return interesting ? 1 : 0;
         } catch (Exception e) {
-            writer.write(String.join(",", ts, pair.label(), "", "", "", "", "", "", "", "", "",
+            writer.write(String.join(",", ts, pair.label(), "", "", "", "", "", "", "", "", "", "",
                 escapeCsv(String.valueOf(e.getMessage()))));
             writer.newLine();
             System.out.println("  !! " + pair.label() + ": error — " + e.getMessage());
