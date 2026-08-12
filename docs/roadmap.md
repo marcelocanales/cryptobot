@@ -57,6 +57,7 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 | [`0006`](sprints/sprint_0006.md) | Spread neto, no bruto — restar fees reales                     | ✅ Cerrado      |
 | [`0007`](sprints/sprint_0007.md) | Monitoreo continuo de 4 exchanges, todas las combinaciones     | ✅ Cerrado      |
 | [`0008`](sprints/sprint_0008.md) | Fee real de NotBank (no estimada), por tipo de par             | ✅ Cerrado      |
+| [`0009`](sprints/sprint_0009.md) | Arbitraje triangular intra-exchange, primer corte (Poloniex)   | ✅ Cerrado      |
 
 ### Estados
 

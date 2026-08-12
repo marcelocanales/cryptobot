@@ -2,6 +2,7 @@ package com.cryptobot.marketdata.poloniex;
 
 import com.cryptobot.marketdata.ExchangeApiException;
 import com.cryptobot.marketdata.ExchangeConnector;
+import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.PriceLevel;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -69,6 +70,62 @@ public class PoloniexConnector implements ExchangeConnector {
         }
 
         return parseOrderBook(symbol, response.body());
+    }
+
+    /**
+     * Lista todos los mercados activos (estado {@code NORMAL}) — hace falta
+     * para descubrir triángulos reales en vez de tenerlos hardcodeados
+     * (Sprint 0009). Se llama una sola vez, no por ciclo — la lista de
+     * mercados cambia rara vez.
+     */
+    public List<Market> fetchMarkets() {
+        var uri = URI.create(BASE_URL + "/markets");
+        var request = HttpRequest.newBuilder(uri)
+            .timeout(Duration.ofSeconds(10))
+            .GET()
+            .build();
+
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new ExchangeApiException("No se pudo conectar a Poloniex para listar mercados", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ExchangeApiException("Consulta a Poloniex interrumpida al listar mercados", e);
+        }
+
+        if (response.statusCode() != 200) {
+            throw new ExchangeApiException(
+                "Poloniex respondió " + response.statusCode() + " al listar mercados: " + response.body());
+        }
+
+        return parseMarkets(response.body());
+    }
+
+    // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
+    List<Market> parseMarkets(String json) {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(json);
+        } catch (IOException e) {
+            throw new ExchangeApiException("Respuesta de Poloniex no es JSON válido para /markets: " + json, e);
+        }
+        if (!root.isArray()) {
+            throw new ExchangeApiException("Respuesta de Poloniex para /markets no es un array: " + json);
+        }
+
+        List<Market> markets = new ArrayList<>();
+        for (JsonNode m : root) {
+            if (!"NORMAL".equals(m.path("state").asText())) {
+                continue;
+            }
+            markets.add(new Market(
+                m.get("baseCurrencyName").asText(),
+                m.get("quoteCurrencyName").asText(),
+                m.get("symbol").asText()));
+        }
+        return markets;
     }
 
     // package-private, no private: testeado directo con JSON real, sin mockear HTTP.

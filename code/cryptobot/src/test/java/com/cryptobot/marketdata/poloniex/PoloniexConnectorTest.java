@@ -1,11 +1,14 @@
 package com.cryptobot.marketdata.poloniex;
 
+import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PoloniexConnectorTest {
 
@@ -32,5 +35,25 @@ class PoloniexConnectorTest {
         // asks: el primero debe ser el mejor (más bajo).
         assertEquals(new BigDecimal("45.455"), book.bestAsk().price());
         assertEquals(new BigDecimal("29.486764"), book.bestAsk().quantity());
+    }
+
+    // Respuesta real (recortada), capturada con curl contra GET /markets el 2026-08-12.
+    private static final String REAL_MARKETS_RESPONSE = """
+        [
+          {"symbol":"DASH_BTC","baseCurrencyName":"DASH","quoteCurrencyName":"BTC","state":"NORMAL"},
+          {"symbol":"ETH_BTC","baseCurrencyName":"ETH","quoteCurrencyName":"BTC","state":"NORMAL"},
+          {"symbol":"ETH_USDT","baseCurrencyName":"ETH","quoteCurrencyName":"USDT","state":"NORMAL"},
+          {"symbol":"XRPBULL_USDT","baseCurrencyName":"XRPBULL","quoteCurrencyName":"USDT","state":"PAUSE"}
+        ]
+        """;
+
+    @Test
+    void parsesRealMarketsResponseAndFiltersOutNonNormalState() {
+        List<Market> markets = new PoloniexConnector().parseMarkets(REAL_MARKETS_RESPONSE);
+
+        assertEquals(3, markets.size());
+        assertTrue(markets.contains(new Market("ETH", "BTC", "ETH_BTC")));
+        assertTrue(markets.contains(new Market("ETH", "USDT", "ETH_USDT")));
+        assertTrue(markets.stream().noneMatch(m -> m.symbol().equals("XRPBULL_USDT")));
     }
 }
