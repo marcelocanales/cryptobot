@@ -1,13 +1,14 @@
 package com.cryptobot;
 
-import com.cryptobot.marketdata.ExchangeConnector;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.PriceLevel;
 import com.cryptobot.marketdata.notbank.NotBankConnector;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 /**
  * Sprint 0002 — spread real cruzado entre Poloniex y NotBank, en un par
@@ -18,8 +19,16 @@ import java.math.RoundingMode;
 public class Main {
 
     public static void main(String[] args) {
-        OrderBook poloniexBook = new PoloniexConnector().fetchOrderBook("LTC_USDT");
-        OrderBook notBankBook = new NotBankConnector().fetchOrderBook("LTCUSDT");
+        var poloniex = new PoloniexConnector();
+        var notBank = new NotBankConnector();
+
+        List<ParallelFetch.FetchTask<String, OrderBook>> fetchTasks = List.of(
+            new ParallelFetch.FetchTask<>("Poloniex", "Poloniex", () -> poloniex.fetchOrderBook("LTC_USDT")),
+            new ParallelFetch.FetchTask<>("NotBank", "NotBank", () -> notBank.fetchOrderBook("LTCUSDT"))
+        );
+        ParallelFetch.Outcome<String, OrderBook> outcome = ParallelFetch.fetchAll(fetchTasks);
+        OrderBook poloniexBook = outcome.results().get("Poloniex");
+        OrderBook notBankBook = outcome.results().get("NotBank");
 
         printBook(poloniexBook);
         System.out.println();

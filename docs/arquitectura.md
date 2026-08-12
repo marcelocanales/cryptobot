@@ -2,7 +2,15 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0013, cerrado)
+## Qué existe hoy (Sprint 0014, cerrado)
+
+`com.cryptobot.marketdata.ParallelFetch` — todos los watchers y checks pedían sus order books uno a la vez, en un `for` secuencial. Con `CrossTriangleWatcher` (168 books) el costo se hizo visible: el primer ciclo no llegaba a completarse ni en 2 minutos. `ParallelFetch.fetchAll(List<FetchTask<K,V>>)` corre las tareas con **virtual threads** (JDK 21) — cada conector sigue exactamente igual (`HttpClient.send()`, bloqueante), la concurrencia se agrega solo en la capa que ya tenía el `for` de fetches. Sin límite entre exchanges distintos (rate limits independientes); acotado dentro de un mismo exchange con un `Semaphore` (`MAX_CONCURRENT_PER_EXCHANGE = 8`, supuesto conservador, no un dato medido — ver backlog). Un fetch que falla cae en `Outcome.errors()` sin cancelar a los demás.
+
+Aplicado a los 6 puntos donde se pedían books: `SpreadWatcher`, `OverlapCheck`, `TriangleWatcher`, `TriangleCheck`, `CrossTriangleWatcher`, `CrossTriangleCheck`, y por consistencia también `Main`. Mismo patrón en los seis: armar la lista de `FetchTask` a partir de lo que ya se iteraba, un solo `fetchAll()` por ciclo, y el trabajo por-ítem (staleness, filas de error) se mueve a iterar sobre `Outcome.results()`/`errors()` en vez de hacerlo inline dentro del fetch.
+
+**Medido, no solo esperado:** `CrossTriangleCheck` (168 books) pasó de no completar un ciclo en 120s a **12,3s totales**. `TriangleCheck` (40 books, un exchange) a 8,7s. `OverlapCheck` (27 books, 4 exchanges) a 2,8s.
+
+## Qué existía en el Sprint 0013
 
 `CrossTriangleWatcher` — versión continua de `CrossTriangleCheck`, mismo salto que `TriangleWatcher` fue para `TriangleCheck` (Sprint 0009→0010). Descubre los 69 triángulos Poloniex+NotBank una sola vez al arrancar, pide cada uno de los 168 order books únicos una sola vez por ciclo, y reusa `StalenessTracker` sin cambios. Suma el mismo umbral de implausibilidad de `CrossTriangleCheck` (Sprint 0012, el hallazgo del choque de tickers BOB) — cualquier resultado con `|bruto| > 50%` se marca `IMPLAUSIBLE` en el CSV en vez de contarse como señal real.
 
