@@ -54,6 +54,7 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 | [`0003`](sprints/sprint_0003.md) | Monitoreo continuo con registro (SpreadWatcher)                | ✅ Cerrado      |
 | [`0004`](sprints/sprint_0004.md) | Primera corrida nocturna real + detector de precio congelado   | ✅ Cerrado      |
 | [`0005`](sprints/sprint_0005.md) | Conectores BudaPRO y YoBit + comparación en vivo de 4 exchanges | ✅ Cerrado      |
+| [`0006`](sprints/sprint_0006.md) | Spread neto, no bruto — restar fees reales                     | ✅ Cerrado      |
 
 ### Estados
 
