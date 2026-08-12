@@ -2,9 +2,11 @@ package com.cryptobot.marketdata.poloniex;
 
 import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.PerpQuote;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,5 +57,50 @@ class PoloniexConnectorTest {
         assertTrue(markets.contains(new Market("ETH", "BTC", "ETH_BTC")));
         assertTrue(markets.contains(new Market("ETH", "USDT", "ETH_USDT")));
         assertTrue(markets.stream().noneMatch(m -> m.symbol().equals("XRPBULL_USDT")));
+    }
+
+    // Respuesta real (recortada), capturada con curl contra GET /v3/market/tickers el 2026-08-12.
+    private static final String REAL_PERP_TICKERS_RESPONSE = """
+        {"code":200,"msg":"Success","data":[
+          {"s":"BTC_USDT_PERP","bPx":"63482.22","bSz":"6","aPx":"63489.28","aSz":"2","mPx":"63487.17"},
+          {"s":"ETH_USDT_PERP","bPx":"1879.74","bSz":"1","aPx":"1879.92","aSz":"62","mPx":"1880.26"},
+          {"s":"XRPBULL_USDT","bPx":"0.001","bSz":"1","aPx":"0.0011","aSz":"1","mPx":"0.00105"}
+        ]}
+        """;
+
+    @Test
+    void parsesRealPerpTickersAndKeepsOnlyPerpetuals() {
+        List<String> symbols = new PoloniexConnector().parsePerpSymbols(REAL_PERP_TICKERS_RESPONSE);
+
+        assertEquals(List.of("BTC_USDT_PERP", "ETH_USDT_PERP"), symbols);
+    }
+
+    // Respuestas reales, capturadas con curl el 2026-08-12 para BTC_USDT_PERP.
+    private static final String REAL_PERP_TICKER_RESPONSE = """
+        {"code":200,"msg":"Success","data":[
+          {"s":"BTC_USDT_PERP","bPx":"63482.22","bSz":"6","aPx":"63489.28","aSz":"2","mPx":"63487.17"}
+        ]}
+        """;
+
+    private static final String REAL_FUNDING_RATE_RESPONSE = """
+        {"code":200,"msg":"Success","data":{"s":"BTC_USDT_PERP","fR":"0.0001","fT":"1786550400000","nFR":"0.0001","nFT":"1786579200000"}}
+        """;
+
+    @Test
+    void parsesRealPerpQuoteCombiningTickerAndFundingRate() {
+        PerpQuote quote = new PoloniexConnector()
+            .parsePerpQuote("BTC_USDT_PERP", REAL_PERP_TICKER_RESPONSE, REAL_FUNDING_RATE_RESPONSE);
+
+        assertEquals("BTC_USDT_PERP", quote.symbol());
+        assertEquals(new BigDecimal("63487.17"), quote.markPrice());
+        assertEquals(new BigDecimal("63482.22"), quote.bestBid().price());
+        assertEquals(new BigDecimal("6"), quote.bestBid().quantity());
+        assertEquals(new BigDecimal("63489.28"), quote.bestAsk().price());
+        // fR=0.0001 (fracción) -> 0.01 (porcentaje)
+        assertEquals(0, new BigDecimal("0.01").compareTo(quote.fundingRatePct()));
+        assertEquals(Instant.ofEpochMilli(1786550400000L), quote.fundingTime());
+        assertEquals(Instant.ofEpochMilli(1786579200000L), quote.nextFundingTime());
+        // intervalo real entre fT y nFT: 8 horas (confirmado en vivo antes de planificar el sprint)
+        assertEquals(8, quote.fundingInterval().toHours());
     }
 }
