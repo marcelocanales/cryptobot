@@ -64,6 +64,7 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 | [`0013`](sprints/sprint_0013.md) | CrossTriangleWatcher — monitoreo continuo cross-exchange       | ✅ Cerrado      |
 | [`0014`](sprints/sprint_0014.md) | Fetches en paralelo (ParallelFetch, aplicado a todo)           | ✅ Cerrado      |
 | [`0015`](sprints/sprint_0015.md) | Funding rate cash-and-carry, primer corte (Poloniex + NotBank) | ✅ Cerrado      |
+| [`0016`](sprints/sprint_0016.md) | CashAndCarryWatcher — monitoreo continuo cash-and-carry        | ✅ Cerrado      |
 
 ### Estados
 

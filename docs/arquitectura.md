@@ -2,7 +2,11 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0015, cerrado)
+## Qué existe hoy (Sprint 0016, cerrado)
+
+`CashAndCarryWatcher` — versión continua de `CashAndCarryCheck`, mismo salto que `TriangleWatcher`/`CrossTriangleWatcher` fueron para sus respectivos checks. Descubre los perpetuos una sola vez al arrancar, corre en loop de 30s con `ParallelFetch`, y reusa `StalenessTracker` — pero solo en las patas de **precio** (spot ask, perpetuo bid), no en el funding rate: ese cambia por diseño cada 8h, marcarlo "congelado" dentro de esa ventana sería ruido, no una señal de dato malo. CSV largo con basis/funding/funding anualizado/fees de entrada/breakeven por ciclo — mismo criterio de "no colapsar en un solo número" que ya tiene `CashAndCarrySpread`.
+
+## Qué existía en el Sprint 0015
 
 Primer código para la **hipótesis 04 (funding rate cash-and-carry)** — distinta en naturaleza a las 3 anteriores: no arbitraje instantáneo, sino una posición que se mantiene abierta cobrando el funding rate. Solo Poloniex, de los 4 exchanges conectados, tiene perpetuos (confirmado en vivo: NotBank 0 instrumentos no-spot, Buda y YoBit solo spot).
 
