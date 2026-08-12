@@ -59,6 +59,7 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 | [`0008`](sprints/sprint_0008.md) | Fee real de NotBank (no estimada), por tipo de par             | ✅ Cerrado      |
 | [`0009`](sprints/sprint_0009.md) | Arbitraje triangular intra-exchange, primer corte (Poloniex)   | ✅ Cerrado      |
 | [`0010`](sprints/sprint_0010.md) | TriangleWatcher — monitoreo continuo triangular                | ✅ Cerrado      |
+| [`0011`](sprints/sprint_0011.md) | Hallazgo: pares cotizados en BTC mayormente congelados         | ✅ Cerrado      |
 
 ### Estados
 
