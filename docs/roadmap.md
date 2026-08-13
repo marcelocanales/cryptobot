@@ -32,7 +32,7 @@ E2 -right-> E3
 | :--- | :--- | :--- |
 | **1 — Estado del arte** | Catálogo de estrategias de arbitraje cripto (la que ya vivió Marcelo hace ~10 años + las que aparecieron después: triangular cross-exchange, funding rate, premium regional, etc.), qué cambió en el mercado desde entonces, e hipótesis de dónde puede quedar edge hoy. Sin código, sin conectarse a ningún exchange. | El catálogo está completo y salen 2-3 hipótesis concretas y priorizadas, listas para testear con datos reales. |
 | **2 — Análisis de viabilidad** | Herramientas de **solo lectura** (APIs públicas de mercado, sin cuentas ni permisos de trading, sin capital) que capturan datos reales — order books, funding rates — en un grupo de exchanges (algunos "majors" de control + chicos/regionales) y miden si las hipótesis de la Etapa 1 se sostienen neto de fees y slippage. | Cada hipótesis priorizada tiene un veredicto documentado con datos: señal real o descartada — ver [veredictos-etapa2.md](veredictos-etapa2.md). |
-| **3 — (pendiente)** | Se define **solo si** la Etapa 2 muestra señal positiva en al menos una hipótesis. No se decide de antemano qué es — podría ser paper trading, podría ser profundizar en la hipótesis ganadora. | — es la salida de la Etapa 2, no tiene criterio propio todavía. |
+| **3 — Factibilidad técnica** | La Etapa 2 ya mostró señal positiva (ver [veredictos-etapa2.md](veredictos-etapa2.md)) — se define en [etapa3-plan.md](etapa3-plan.md): 4 fases en orden, de conectar un exchange de solo lectura hasta una prueba real mínima (10 USD o menos), cada una con su propio visto bueno explícito. | Cada fase tiene su propio criterio, ver [etapa3-plan.md](etapa3-plan.md). |
 
 > **Capital real:** no se abre ni se evalúa antes de la Etapa 3, y ni ahí sin autorización explícita — ver [metodologia.md](metodologia.md).
 
@@ -74,6 +74,14 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 | [`0023`](sprints/sprint_0023.md) | Conectar Bitfinex (6to exchange, hipótesis 01)                  | ✅ Cerrado      |
 | [`0024`](sprints/sprint_0024.md) | Funding rate cross-exchange (05), primer corte: Poloniex + Bitfinex | ✅ Cerrado  |
 | [`0025`](sprints/sprint_0025.md) | FundingCrossExchangeWatcher — monitoreo continuo de la hipótesis 05 | ✅ Cerrado  |
+
+### Etapa 3 — Factibilidad técnica
+
+Ver [etapa3-plan.md](etapa3-plan.md) para las 4 fases. Sigue siendo de solo lectura hasta la fase 4.
+
+|              Sprint              | Objetivo                                                       | Estado         |
+| :------------------------------: | :--------------------------------------------------------------| :------------- |
+| [`0028`](sprints/sprint_0028.md) | Conectar Binance (7mo exchange, fase 1 de la Etapa 3)           | 🔵 En curso     |
 
 ### Estados
 
