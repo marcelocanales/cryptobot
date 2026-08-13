@@ -6,6 +6,7 @@ import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.PriceLevel;
 import com.cryptobot.marketdata.TrackedAsset;
 import com.cryptobot.marketdata.TrackedAssets;
+import com.cryptobot.marketdata.binance.BinanceConnector;
 import com.cryptobot.marketdata.bitfinex.BitfinexConnector;
 import com.cryptobot.marketdata.buda.BudaConnector;
 import com.cryptobot.marketdata.coinex.CoinExConnector;
@@ -34,8 +35,9 @@ public class OverlapCheck {
         var yobit = new YobitConnector();
         var coinex = new CoinExConnector();
         var bitfinex = new BitfinexConnector();
+        var binance = new BinanceConnector();
 
-        List<TrackedAsset> assets = TrackedAssets.all(poloniex, notBank, buda, yobit, coinex, bitfinex);
+        List<TrackedAsset> assets = TrackedAssets.all(poloniex, notBank, buda, yobit, coinex, bitfinex, binance);
 
         List<ParallelFetch.FetchTask<String, OrderBook>> fetchTasks = new ArrayList<>();
         for (TrackedAsset asset : assets) {

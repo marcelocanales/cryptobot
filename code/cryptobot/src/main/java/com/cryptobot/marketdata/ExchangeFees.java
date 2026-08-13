@@ -25,12 +25,17 @@ public final class ExchangeFees {
     // 17/12/2025, spot y ~60 perpetuos, sin umbral de volumen (confirmado
     // en el blog oficial de Bitfinex y corroborado por medios independientes,
     // Sprint 0023). No es un placeholder ni un "todavía no sabemos".
+    // Binance: 0,10% taker, tier VIP 0 sin descuento por pagar en BNB —
+    // confirmado contra binance.com/en/fee/schedule (Sprint 0028). No se
+    // asume que la cuenta de Marcelo tiene el descuento activado (bajaría a
+    // 0,075%); si se confirma más adelante, se actualiza acá.
     private static final Map<String, BigDecimal> FLAT_TAKER_FEE = Map.of(
         "Poloniex", new BigDecimal("0.0020"),
         "Buda", new BigDecimal("0.0080"),
         "YoBit", new BigDecimal("0.0020"),
         "CoinEx", new BigDecimal("0.0020"),
-        "Bitfinex", new BigDecimal("0.0000")
+        "Bitfinex", new BigDecimal("0.0000"),
+        "Binance", new BigDecimal("0.0010")
     );
 
     // NotBank: fee real (no estimada), confirmada en vivo contra su propia

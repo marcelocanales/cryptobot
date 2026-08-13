@@ -1,5 +1,6 @@
 package com.cryptobot.marketdata;
 
+import com.cryptobot.marketdata.binance.BinanceConnector;
 import com.cryptobot.marketdata.bitfinex.BitfinexConnector;
 import com.cryptobot.marketdata.buda.BudaConnector;
 import com.cryptobot.marketdata.coinex.CoinExConnector;
@@ -37,7 +38,7 @@ public final class TrackedAssets {
 
     public static List<TrackedAsset> all(PoloniexConnector poloniex, NotBankConnector notbank,
                                           BudaConnector buda, YobitConnector yobit, CoinExConnector coinex,
-                                          BitfinexConnector bitfinex) {
+                                          BitfinexConnector bitfinex, BinanceConnector binance) {
         List<CrossVenue> venues = new ArrayList<>();
         for (Market m : poloniex.fetchMarkets()) {
             venues.add(new CrossVenue(poloniex, m));
@@ -56,6 +57,9 @@ public final class TrackedAssets {
         }
         for (Market m : bitfinex.fetchMarkets()) {
             venues.add(new CrossVenue(bitfinex, m));
+        }
+        for (Market m : binance.fetchMarkets()) {
+            venues.add(new CrossVenue(binance, m));
         }
         return discover(venues);
     }

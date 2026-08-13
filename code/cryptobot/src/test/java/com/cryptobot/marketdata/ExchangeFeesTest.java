@@ -17,6 +17,7 @@ class ExchangeFeesTest {
         assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("YoBit", "USDT"));
         assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("CoinEx", "USDT"));
         assertEquals(new BigDecimal("0.0000"), ExchangeFees.takerFee("Bitfinex", "USDT"));
+        assertEquals(new BigDecimal("0.0010"), ExchangeFees.takerFee("Binance", "USDT"));
     }
 
     @Test
@@ -29,7 +30,7 @@ class ExchangeFeesTest {
 
     @Test
     void unknownExchangeIsAnError() {
-        assertThrows(IllegalArgumentException.class, () -> ExchangeFees.takerFee("Binance", "USDT"));
+        assertThrows(IllegalArgumentException.class, () -> ExchangeFees.takerFee("Kraken", "USDT"));
     }
 
     @Test

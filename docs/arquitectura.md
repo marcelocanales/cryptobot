@@ -2,7 +2,17 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0025, cerrado)
+## Qué existe hoy (Sprint 0028, cerrado)
+
+7mo exchange conectado: **Binance**, de solo lectura — igual alcance que conectar CoinEx/Bitfinex (conector + hipótesis 01, nada más). Primer paso de la Etapa 3 ([etapa3-plan.md](etapa3-plan.md), fase 1 de 4): Marcelo pidió evaluar factibilidad técnica de arbitraje real con un monto mínimo, y Binance resultó el mejor candidato — spread más grande medido hasta ahora contra Poloniex en ZEC/USDT, y cuenta ya habilitada para operar (a diferencia de Bitfinex, que venció, o CoinEx, sin cuenta).
+
+- `com.cryptobot.marketdata.binance.BinanceConnector` — mismo patrón `ExchangeConnector` que los otros 6. Símbolo concatenado (`ZECUSDT`, como CoinEx). Sin timestamp propio en la respuesta del book — se usa el momento de la respuesta, como Buda. A diferencia de CoinEx/YoBit, un símbolo inválido responde HTTP no-200 (400), no HTTP 200 con un campo de error — más simple de manejar.
+- `ExchangeFees` gana `"Binance" → 0,10%` — tier VIP 0 sin descuento por BNB, confirmado contra la página oficial de fees de Binance, no asumido.
+- `TrackedAssets.all(...)` gana un 7mo parámetro (`BinanceConnector`) — `OverlapCheck`/`SpreadWatcher` actualizados.
+- **Verificado en vivo:** `OverlapCheck` pasó de 450 a **688 activos** — el salto más grande de cualquier exchange conectado hasta ahora (Binance por sí solo tiene 1.378 mercados activos). Confirmado el hallazgo que motivó todo esto: `ZEC/USDT` comprando en Poloniex y vendiendo en Binance da bruto 7,52%, neto 7,22% — mismo orden de magnitud que ya se veía contra Bitfinex/CoinEx, no un caso aislado de Binance.
+- **Fuera de alcance, a propósito:** todo lo de las fases 2-4 de la Etapa 3 (monitoreo prolongado, paper trading, prueba real) — Binance sigue siendo 100% de solo lectura, sin ninguna API key ni capital.
+
+## Qué existía en el Sprint 0025
 
 `FundingCrossExchangeWatcher` — versión continua de `FundingCrossExchangeCheck`, mismo salto que `CashAndCarryWatcher` fue para `CashAndCarryCheck` (Sprint 0015 → 0016). Descubre los activos con perpetuo en 2+ exchanges una sola vez al arrancar, corre en loop de 30s con `ParallelFetch`, y reusa `StalenessTracker` — pero solo en las patas de **precio** (bid del corto, ask del largo), no en el funding rate: ese cambia por diseño cada 8h, marcarlo "congelado" dentro de esa ventana sería ruido, no una señal de dato malo (mismo criterio que `CashAndCarryWatcher`). CSV de 12 columnas (`timestamp,asset,short_exchange,short_annualized_pct,long_exchange,long_annualized_pct,annualized_differential_pct,entry_fees_pct,breakeven_hours,stale,flag,error`) — `flag=REVISAR` en cualquier diferencial positivo (mismo criterio que `TriangleWatcher`/`CrossTriangleWatcher`, sin umbral inventado).
 
