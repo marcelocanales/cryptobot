@@ -2,7 +2,17 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0021, cerrado)
+## Qué existe hoy (Sprint 0023, cerrado)
+
+6to exchange conectado: **Bitfinex** — Marcelo ya tenía cuenta ahí (pendiente reverificar por el tiempo, no bloquea la Etapa 2). Mismo alcance que conectar CoinEx (Sprint 0021): conector + hipótesis 01, nada más.
+
+- `com.cryptobot.marketdata.bitfinex.BitfinexConnector` — dos particularidades de formato propias, ninguna vista en los otros 5 conectores: el book es un **array plano combinado** (signo de la cantidad distingue bid/ask, hay que partirlo y ordenar cada lado a mano — `OrderBook` exige bids/asks pre-ordenados) y `UST` (ticker de Bitfinex para Tether) se **normaliza a `USDT`** al armar cada `Market`, confirmado contra `GET /v2/conf/pub:map:currency:label` — si no, los 63 mercados UST de Bitfinex nunca hubieran cruzado con los USDT de los demás exchanges en `TrackedAssets` (agrupa por string exacto).
+- `ExchangeFees` gana `"Bitfinex" → 0,00%` — **fee cero real**, no un valor sin confirmar: permanente desde el 17/12/2025, spot y ~60 perpetuos, sin umbral de volumen (confirmado en el blog oficial de Bitfinex, corroborado por medios independientes).
+- `TrackedAssets.all(...)` gana un 6to parámetro (`BitfinexConnector`) — `OverlapCheck`/`SpreadWatcher` actualizados.
+- **Verificado en vivo:** `OverlapCheck` pasó de 436 a **450 activos**. Confirmada la normalización UST→USDT: BTC/USDT lista a Bitfinex junto a los demás exchanges, no aparece un grupo separado "BTC/UST". Las comparaciones que incluyen a Bitfinex muestran la fee combinada más baja de todo el proyecto (ej. 0,20% en vez de 0,40%+ cuando Bitfinex es una de las dos patas).
+- **Fuera de alcance, backlog de alta prioridad:** futuros/funding de Bitfinex — con fee cero, es el candidato de mayor impacto esperado para cash-and-carry (04) y funding cross-exchange (05) de todo el backlog.
+
+## Qué existía en el Sprint 0021
 
 5to exchange conectado: **CoinEx** — elegido tras investigar Latoken/CoinEx/Bitrue (research, no asumido: API pública real, actividad genuina, disponibilidad para Chile confirmada contra la fuente oficial). Mismo alcance que tuvo conectar Buda/YoBit en el Sprint 0005: conector + hipótesis 01, nada más.
 

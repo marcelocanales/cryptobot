@@ -21,11 +21,16 @@ public final class ExchangeFees {
     // — acá se usa 0,20% como aproximación, confirmada en vivo para los
     // majors que de hecho se usan vía TrackedAssets (BTCUSDT/ETHUSDT/
     // LTCUSDT), no exacta para cualquier par exótico. Ver docs/entorno.md.
+    // Bitfinex: fee CERO real, no una fee sin modelar — permanente desde el
+    // 17/12/2025, spot y ~60 perpetuos, sin umbral de volumen (confirmado
+    // en el blog oficial de Bitfinex y corroborado por medios independientes,
+    // Sprint 0023). No es un placeholder ni un "todavía no sabemos".
     private static final Map<String, BigDecimal> FLAT_TAKER_FEE = Map.of(
         "Poloniex", new BigDecimal("0.0020"),
         "Buda", new BigDecimal("0.0080"),
         "YoBit", new BigDecimal("0.0020"),
-        "CoinEx", new BigDecimal("0.0020")
+        "CoinEx", new BigDecimal("0.0020"),
+        "Bitfinex", new BigDecimal("0.0000")
     );
 
     // NotBank: fee real (no estimada), confirmada en vivo contra su propia
