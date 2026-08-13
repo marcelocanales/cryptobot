@@ -7,6 +7,7 @@ import com.cryptobot.marketdata.PriceLevel;
 import com.cryptobot.marketdata.TrackedAsset;
 import com.cryptobot.marketdata.TrackedAssets;
 import com.cryptobot.marketdata.buda.BudaConnector;
+import com.cryptobot.marketdata.coinex.CoinExConnector;
 import com.cryptobot.marketdata.notbank.NotBankConnector;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
 import com.cryptobot.marketdata.yobit.YobitConnector;
@@ -27,8 +28,8 @@ import java.util.Optional;
 
 /**
  * Corre en loop, en primer plano, toda la noche si hace falta: trae el book
- * de los 4 exchanges conectados (Poloniex, NotBank, Buda, YoBit) para cada
- * activo de {@link TrackedAssets}, genera todas las combinaciones posibles
+ * de los 5 exchanges conectados (Poloniex, NotBank, Buda, YoBit, CoinEx)
+ * para cada activo de {@link TrackedAssets}, genera todas las combinaciones posibles
  * entre los exchanges que lo cotizan, calcula el spread neto de fees en las
  * dos direcciones de cada combinación, y registra cada observación en un
  * CSV — no solo la última, todas. Una foto no alcanza para saber si hay
@@ -56,9 +57,10 @@ public class SpreadWatcher {
         var notbank = new NotBankConnector();
         var buda = new BudaConnector();
         var yobit = new YobitConnector();
+        var coinex = new CoinExConnector();
         var staleness = new StalenessTracker(STALE_AFTER_CYCLES);
 
-        List<TrackedAsset> assets = TrackedAssets.all(poloniex, notbank, buda, yobit);
+        List<TrackedAsset> assets = TrackedAssets.all(poloniex, notbank, buda, yobit, coinex);
 
         Path outputPath = resolveOutputPath();
         Files.createDirectories(outputPath.getParent());

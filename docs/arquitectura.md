@@ -2,7 +2,17 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0020, cerrado)
+## Qué existe hoy (Sprint 0021, cerrado)
+
+5to exchange conectado: **CoinEx** — elegido tras investigar Latoken/CoinEx/Bitrue (research, no asumido: API pública real, actividad genuina, disponibilidad para Chile confirmada contra la fuente oficial). Mismo alcance que tuvo conectar Buda/YoBit en el Sprint 0005: conector + hipótesis 01, nada más.
+
+- `com.cryptobot.marketdata.coinex.CoinExConnector` — mismo patrón `ExchangeConnector` que los otros 4. Bids/asks como string (como Poloniex/Buda). Símbolo inválido/parámetro inválido → HTTP 200 con `"code" != 0` (mismo patrón de error "silencioso" que ya tenía YoBit con `"success"`).
+- `ExchangeFees` gana `"CoinEx" → 0,20%` — una aproximación documentada: la fee real de CoinEx varía **por mercado individual** (751/242/6 mercados a 0,30%/0,20%/0,10%), a diferencia de los otros 4 exchanges (planos, o variando solo por tipo de moneda de cotización); 0,20% es lo confirmado en vivo para los majors que efectivamente se usan vía `TrackedAssets`.
+- `TrackedAssets.all(...)` gana un 5to parámetro (`CoinExConnector`) — `OverlapCheck`/`SpreadWatcher` actualizados.
+- **Verificado en vivo:** `OverlapCheck` pasó de 67 a **436 activos** con 2+ exchanges — CoinEx (999 mercados) cruza el umbral de "2+ exchanges" para muchos tickers que antes solo vivían en YoBit. Los 11 activos originales del Sprint 0007 siguen todos presentes.
+- **Fuera de alcance, backlog nuevo:** futuros/funding rate de CoinEx (habilitaría la hipótesis 05, funding rate cross-exchange — la única priorizada del catálogo sin poder probarse hoy), CoinEx en triangular (02/03), CoinEx como candidato de spot en cash-and-carry (04).
+
+## Qué existía en el Sprint 0020
 
 Hipótesis 04 (cash-and-carry) suma YoBit como candidato de spot — antes solo competían Poloniex y NotBank. Medido en vivo antes de construir: de los 18 perpetuos de Poloniex, Buda no cubre ninguno en USDT (su universo es CLP/COP/PEN, 0 de 18) y YoBit cubre 6 (BTC, DOGE, ETH, LTC, TRX, XRP) — **por eso este sprint suma solo YoBit**; Buda queda backlog aparte porque sumarlo bien requeriría convertir CLP→USDT en vivo antes de comparar contra el perpetuo (que siempre es USDT), no un cambio chico.
 
