@@ -2,7 +2,13 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0024, cerrado)
+## Qué existe hoy (Sprint 0025, cerrado)
+
+`FundingCrossExchangeWatcher` — versión continua de `FundingCrossExchangeCheck`, mismo salto que `CashAndCarryWatcher` fue para `CashAndCarryCheck` (Sprint 0015 → 0016). Descubre los activos con perpetuo en 2+ exchanges una sola vez al arrancar, corre en loop de 30s con `ParallelFetch`, y reusa `StalenessTracker` — pero solo en las patas de **precio** (bid del corto, ask del largo), no en el funding rate: ese cambia por diseño cada 8h, marcarlo "congelado" dentro de esa ventana sería ruido, no una señal de dato malo (mismo criterio que `CashAndCarryWatcher`). CSV de 12 columnas (`timestamp,asset,short_exchange,short_annualized_pct,long_exchange,long_annualized_pct,annualized_differential_pct,entry_fees_pct,breakeven_hours,stale,flag,error`) — `flag=REVISAR` en cualquier diferencial positivo (mismo criterio que `TriangleWatcher`/`CrossTriangleWatcher`, sin umbral inventado).
+
+**Verificado en vivo:** 4 ciclos reales, 12 de 15 activos evaluables en cada uno, resultados estables ciclo a ciclo — salvo **APT, que cambió de signo** entre la foto del Sprint 0024 (diferencial negativo) y esta corrida (positivo, +10,95% anualizado) — evidencia real, no hipotética, de por qué hace falta un watcher y no alcanza con una sola foto. `WatchHealthReport` (Sprint 0019) analizó el CSV resultante sin ningún cambio de código — confirma que el diseño "genérico por nombre de columna" sigue funcionando en un 6to formato que nunca se pensó específicamente para él.
+
+## Qué existía en el Sprint 0024
 
 Primer código para la **hipótesis 05 (funding rate cross-exchange)** — priorizada #3 en el catálogo desde el Sprint 0001, nunca antes probada por falta de un segundo exchange con perpetuos accesibles. Con Bitfinex (Sprint 0023) ya conectado, se suman sus perpetuos y se construye la comparación contra Poloniex.
 
