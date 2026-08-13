@@ -33,10 +33,12 @@ class ExchangeFeesTest {
     }
 
     @Test
-    void perpFeeOnlyKnownForPoloniex() {
+    void perpFeeKnownForPoloniexAndBitfinex() {
         // Confirmado contra la cuenta real de Marcelo (VIP 0, USDT-M Perpetual
         // Futures), Sprint 0022 — no un supuesto de contenido de soporte.
         assertEquals(new BigDecimal("0.0006"), ExchangeFees.perpTakerFee("Poloniex"));
+        // Fee cero permanente, spot y derivados, confirmado Sprint 0023/0024.
+        assertEquals(new BigDecimal("0.0000"), ExchangeFees.perpTakerFee("Bitfinex"));
         assertThrows(IllegalArgumentException.class, () -> ExchangeFees.perpTakerFee("NotBank"));
     }
 }

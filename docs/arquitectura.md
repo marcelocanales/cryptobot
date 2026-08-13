@@ -2,7 +2,18 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0023, cerrado)
+## Qué existe hoy (Sprint 0024, cerrado)
+
+Primer código para la **hipótesis 05 (funding rate cross-exchange)** — priorizada #3 en el catálogo desde el Sprint 0001, nunca antes probada por falta de un segundo exchange con perpetuos accesibles. Con Bitfinex (Sprint 0023) ya conectado, se suman sus perpetuos y se construye la comparación contra Poloniex.
+
+- `BitfinexConnector` gana `fetchPerpSymbols()`/`fetchPerpQuote(symbol)` — mismo patrón que `PoloniexConnector` (Sprint 0015), combinando `GET /ticker` (bid/ask) + `GET /status/deriv` (mark price, funding, próximo funding). El funding de Bitfinex corre en grilla fija de 8h (0:00/8:00/16:00 UTC, confirmado en su documentación y cruzado contra un timestamp real) — a diferencia de Poloniex, la API no expone la hora de INICIO del período actual, solo la del próximo, así que `fundingTime` se **deriva** (`nextFundingTime - 8h`), no se mide independiente cada vez.
+- `ExchangeFees.PERP_TAKER_FEE` gana `"Bitfinex" → 0%` (mismo alcance de fee cero ya confirmado en el Sprint 0023, cubre derivados).
+- `com.cryptobot.funding.FundingCrossExchangeCandidates`: descubre, por activo, en qué exchanges hay un perpetuo margined en USDT — necesita 2+ para poder comparar. Extracción de activo específica por exchange (`_USDT_PERP` para Poloniex, `{BASE}F0:{QUOTE}F0` con normalización UST→USDT para Bitfinex).
+- `com.cryptobot.funding.FundingCrossExchangeSpread`: a diferencia de `CashAndCarrySpread` (una pata spot, una perpetuo), acá **las dos patas son perpetuos** — diseño "mejor de N candidatos" desde el arranque (no un bolt-on de 2 exchanges): entre todos los candidatos con liquidez suficiente, el de mayor funding **anualizado** es el corto, el de menor (en otro exchange) es el largo. Anualiza con el intervalo real de cada candidato, no asume que coinciden entre exchanges — y el breakeven se mide en **horas**, no en "períodos", por la misma razón.
+- `FundingCrossExchangeCheck` (en `com.cryptobot`): foto en vivo, mismo patrón que `CashAndCarryCheck`.
+- **Verificado en vivo — primera vez que la hipótesis 05 se prueba con datos reales**: 15 activos con perpetuo en ambos exchanges, 12 evaluables con liquidez suficiente. **12 de 12 con diferencial anualizado positivo** (breakeven entre 3,3h y 80,6h). Dos casos (FIL, BNB) con diferenciales extremos (funding de Bitfinex fuertemente negativo) — confirmados con profundidad real de mercado (~$120k–270k de notional en el book, no polvo), pero es una sola foto: la pregunta de persistencia (¿el diferencial se sostiene en el tiempo?) queda abierta, no se declara señal confirmada con un solo dato.
+
+## Qué existía en el Sprint 0023
 
 6to exchange conectado: **Bitfinex** — Marcelo ya tenía cuenta ahí (pendiente reverificar por el tiempo, no bloquea la Etapa 2). Mismo alcance que conectar CoinEx (Sprint 0021): conector + hipótesis 01, nada más.
 
