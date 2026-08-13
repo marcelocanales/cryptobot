@@ -2,7 +2,15 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0018, cerrado)
+## Qué existe hoy (Sprint 0019, cerrado)
+
+Nuevo paquete `com.cryptobot.report` — deja de analizarse a mano cada CSV largo. Los 5 formatos de watcher (`SpreadWatcher`/`TriangleWatcher`/`YobitTriangleWatcher`/`CrossTriangleWatcher`/`CashAndCarryWatcher`) comparten `timestamp` primero y `stale,flag,error` últimas tres, aunque el resto de columnas sea totalmente distinto — confirmado leyendo los 5 headers reales, no asumido. Una sola herramienta genérica por nombre de columna alcanza para los 5.
+
+- `WatchHealthAnalyzer` (lógica pura, testeable con CSV sintético en memoria): una pasada por el archivo. Ciclos y huecos de tiempo se **miden** del propio archivo (mediana de los gaps entre timestamps distintos), no se asume un intervalo fijo — un gap > 3x esa mediana se marca hueco (heurística de partida, mismo tratamiento que `ParallelFetch.MAX_CONCURRENT_PER_EXCHANGE`). Cuenta `flag` por valor exacto, agrupa `error` por mensaje (separando el prefijo `"<clave>: "` que cada watcher antepone, así el mismo patrón en 40 símbolos cuenta como uno, no 40), cuenta tokens `|`-separados de `stale`. La columna `error` es la única que puede venir citada/escapada (mismo formato que `escapeCsv` ya escribe en los watchers) — se maneja con `split(",", N)` + desescapado del último campo, sin sumar una dependencia de parseo CSV.
+- `WatchHealthReport` (CLI, `com.cryptobot.report`): imprime el reporte de uno o más archivos: `mvn exec:java -Dexec.mainClass=com.cryptobot.report.WatchHealthReport -Dexec.args="data/archivo.csv"`. Un archivo que falla no aborta los demás. Errores/stale se listan top 15 por frecuencia con nota explícita de cuántos quedan afuera — sin cap silencioso.
+- **Verificado en vivo, no solo con datos sintéticos:** 2 ciclos reales de `YobitTriangleWatcher` (1.446 filas) — el reporte coincidió exacto con lo contado a mano por `grep`/`wc`. De paso, midió algo nuevo: cada ciclo de `YobitTriangleWatcher` tarda **~112s en la práctica**, no los 30s nominales — el fetch de 393 books bajo el semáforo de 8 concurrentes por exchange (`ParallelFetch`, Sprint 0014) domina el tiempo total cuando todos los books son del mismo exchange. Confirma, con un dato medido, la sospecha ya anotada en el backlog (Sprint 0014) sobre YoBit y concurrencia.
+
+## Qué existía en el Sprint 0018
 
 Hipótesis 02 (triangular intra-exchange) suma **YoBit**, hasta ahora solo probada en Poloniex. Antes de construir se midió en vivo (contra `TriangleFinder` real, sin escribir código nuevo): 340 triángulos anclados en USDT (393 order books únicos) vs. 7.520 anclados en BTC y 7.516 en ETH — se construyó **solo el ancla USDT**; BTC/ETH queda backlog explícito, no descartado (ver Decisiones en `sprint_0018.md`, motivado por el hallazgo del Sprint 0011: incluso el par más líquido de Poloniex, ETH/BTC, pasa ~91% del tiempo congelado).
 
