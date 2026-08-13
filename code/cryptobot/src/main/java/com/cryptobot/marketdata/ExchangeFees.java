@@ -53,7 +53,8 @@ public final class ExchangeFees {
     // (se sacó de contenido de soporte/anuncios del exchange, sin poder
     // confirmarlo contra una fuente más dura hasta ahora).
     private static final Map<String, BigDecimal> PERP_TAKER_FEE = Map.of(
-        "Poloniex", new BigDecimal("0.0006")
+        "Poloniex", new BigDecimal("0.0006"),
+        "Bitfinex", new BigDecimal("0.0000")
     );
 
     private ExchangeFees() {

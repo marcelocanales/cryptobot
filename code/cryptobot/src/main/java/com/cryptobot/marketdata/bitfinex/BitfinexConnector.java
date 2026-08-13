@@ -4,6 +4,7 @@ import com.cryptobot.marketdata.ExchangeApiException;
 import com.cryptobot.marketdata.ExchangeConnector;
 import com.cryptobot.marketdata.Market;
 import com.cryptobot.marketdata.OrderBook;
+import com.cryptobot.marketdata.PerpQuote;
 import com.cryptobot.marketdata.PriceLevel;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,6 +49,15 @@ public class BitfinexConnector implements ExchangeConnector {
     private static final String SYMBOL_PREFIX = "t";
     private static final String BITFINEX_USDT_TICKER = "UST";
     private static final String CANONICAL_USDT = "USDT";
+
+    // Funding de perpetuos en grilla fija de 8h (0:00/8:00/16:00 UTC) —
+    // confirmado tanto en la documentación de Bitfinex (liquidación 3
+    // veces al día) como cruzando un NEXT_FUNDING_EVT_TIMESTAMP_MS real
+    // contra esa grilla (Sprint 0024). La API no expone la hora de INICIO
+    // del período actual, solo la del próximo — a diferencia de Poloniex
+    // (que sí mide fT/nFT real de la API), acá `fundingTime` se DERIVA de
+    // `nextFundingTime - 8h`, no se mide independientemente cada vez.
+    private static final Duration FUNDING_INTERVAL = Duration.ofHours(8);
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -118,6 +128,98 @@ public class BitfinexConnector implements ExchangeConnector {
         }
 
         return parseMarkets(response.body());
+    }
+
+    /**
+     * Lista los símbolos de perpetuos activos (Sprint 0024) — descubiertos
+     * contra {@code GET /conf/pub:list:pair:futures}, no hardcodeados.
+     * Filtra los pares de sandbox ({@code TEST*}). Devuelve el símbolo con
+     * el prefijo {@code t} ya puesto, listo para pasar directo a
+     * {@link #fetchPerpQuote(String)}.
+     */
+    public List<String> fetchPerpSymbols() {
+        String body = fetchBody(BASE_URL + "/conf/pub:list:pair:futures", "al listar perpetuos");
+        return parsePerpSymbols(body);
+    }
+
+    /**
+     * Combina precio (mark, mejor bid/ask) y funding rate actual de un
+     * perpetuo — dos llamadas reales, {@code /ticker} y
+     * {@code /status/deriv}, ninguna documentada como "la misma cosa",
+     * hay que pedirlas por separado (mismo criterio que
+     * {@code PoloniexConnector.fetchPerpQuote}).
+     */
+    public PerpQuote fetchPerpQuote(String symbol) {
+        String tickerBody = fetchBody(BASE_URL + "/ticker/" + symbol, "ticker de " + symbol);
+        String derivBody = fetchBody(BASE_URL + "/status/deriv?keys=" + symbol, "status/deriv de " + symbol);
+        return parsePerpQuote(symbol, tickerBody, derivBody);
+    }
+
+    private String fetchBody(String url, String context) {
+        var request = HttpRequest.newBuilder(URI.create(url))
+            .timeout(Duration.ofSeconds(10))
+            .GET()
+            .build();
+
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new ExchangeApiException("No se pudo conectar a Bitfinex (" + context + ")", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ExchangeApiException("Consulta a Bitfinex interrumpida (" + context + ")", e);
+        }
+
+        if (response.statusCode() != 200) {
+            throw new ExchangeApiException(
+                "Bitfinex respondió " + response.statusCode() + " (" + context + "): " + response.body());
+        }
+        return response.body();
+    }
+
+    // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
+    List<String> parsePerpSymbols(String json) {
+        JsonNode root = readTree(json, "al listar perpetuos");
+        checkError(root, json, "al listar perpetuos");
+
+        JsonNode pairs = root.path(0);
+        if (!pairs.isArray()) {
+            throw new ExchangeApiException("Respuesta de Bitfinex sin lista de perpetuos esperada: " + json);
+        }
+
+        List<String> result = new ArrayList<>();
+        for (JsonNode p : pairs) {
+            String pair = p.asText();
+            if (pair.contains("TEST")) {
+                continue;
+            }
+            result.add(SYMBOL_PREFIX + pair);
+        }
+        return result;
+    }
+
+    // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
+    PerpQuote parsePerpQuote(String symbol, String tickerJson, String derivJson) {
+        JsonNode tickerRoot = readTree(tickerJson, "ticker de " + symbol);
+        checkError(tickerRoot, tickerJson, "ticker de " + symbol);
+        JsonNode derivRoot = readTree(derivJson, "status/deriv de " + symbol);
+        checkError(derivRoot, derivJson, "status/deriv de " + symbol);
+
+        JsonNode derivEntries = derivRoot;
+        if (!derivEntries.isArray() || derivEntries.isEmpty()) {
+            throw new ExchangeApiException("Respuesta de Bitfinex sin status/deriv para " + symbol + ": " + derivJson);
+        }
+        JsonNode deriv = derivEntries.get(0);
+
+        PriceLevel bestBid = new PriceLevel(tickerRoot.get(0).decimalValue(), tickerRoot.get(1).decimalValue());
+        PriceLevel bestAsk = new PriceLevel(tickerRoot.get(2).decimalValue(), tickerRoot.get(3).decimalValue());
+        BigDecimal markPrice = deriv.get(15).decimalValue();
+        BigDecimal fundingRatePct = deriv.get(12).decimalValue().multiply(BigDecimal.valueOf(100));
+        Instant nextFundingTime = Instant.ofEpochMilli(deriv.get(8).asLong());
+        Instant fundingTime = nextFundingTime.minus(FUNDING_INTERVAL);
+
+        return new PerpQuote(symbol, markPrice, bestBid, bestAsk, fundingRatePct, fundingTime, nextFundingTime);
     }
 
     // package-private, no private: testeado directo con JSON real, sin mockear HTTP.
