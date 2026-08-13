@@ -10,6 +10,7 @@
 | --- | --- |
 | [vision.md](vision.md) | Qué es Cryptobot y a dónde va — el norte cualitativo (pendiente: motivación y antecedentes) |
 | [roadmap.md](roadmap.md) | Etapas + el registro de sprints bajo su etapa con su estado (tracker vivo) |
+| [veredictos-etapa2.md](veredictos-etapa2.md) | Veredicto con datos por hipótesis de la Etapa 2 — señal real o descartada |
 | [metodologia.md](metodologia.md) | Cómo trabajamos: ciclo de sprints, convenciones, publicación |
 | [entorno.md](entorno.md) | Inventario vivo: equipo, lenguajes, herramientas y servicios en uso |
 | [arquitectura.md](arquitectura.md) | Arquitectura actual — diagrama vivo, única fuente |
