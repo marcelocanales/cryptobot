@@ -1,13 +1,15 @@
 package com.cryptobot.watch;
 
+import com.cryptobot.funding.CashAndCarryCandidates;
 import com.cryptobot.funding.CashAndCarrySpread;
-import com.cryptobot.marketdata.Market;
+import com.cryptobot.marketdata.CrossVenue;
 import com.cryptobot.marketdata.OrderBook;
 import com.cryptobot.marketdata.ParallelFetch;
 import com.cryptobot.marketdata.PerpQuote;
 import com.cryptobot.marketdata.PriceLevel;
 import com.cryptobot.marketdata.notbank.NotBankConnector;
 import com.cryptobot.marketdata.poloniex.PoloniexConnector;
+import com.cryptobot.marketdata.yobit.YobitConnector;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -43,41 +45,15 @@ public class CashAndCarryWatcher {
     private static final int CYCLE_INTERVAL_SECONDS = 30;
     private static final int STALE_AFTER_CYCLES = 10;
     private static final BigDecimal MIN_NOTIONAL_USDT = new BigDecimal("50");
-    private static final String PERP_SUFFIX = "_USDT_PERP";
     private static final String PERP_EXCHANGE = "Poloniex";
-
-    private record Candidate(String asset, String perpSymbol, String poloniexSpotSymbol, String notbankSpotSymbol) {
-    }
 
     public static void main(String[] args) throws IOException {
         var poloniex = new PoloniexConnector();
         var notbank = new NotBankConnector();
+        var yobit = new YobitConnector();
         var staleness = new StalenessTracker(STALE_AFTER_CYCLES);
 
-        List<String> perpSymbols = poloniex.fetchPerpSymbols();
-        Map<String, String> poloniexSpotSymbolByBase = new HashMap<>();
-        for (Market m : poloniex.fetchMarkets()) {
-            if ("USDT".equals(m.quote())) {
-                poloniexSpotSymbolByBase.put(m.base(), m.symbol());
-            }
-        }
-        Map<String, String> notbankSpotSymbolByBase = new HashMap<>();
-        for (Market m : notbank.fetchMarkets()) {
-            if ("USDT".equals(m.quote())) {
-                notbankSpotSymbolByBase.put(m.base(), m.symbol());
-            }
-        }
-
-        List<Candidate> candidates = new ArrayList<>();
-        for (String perpSymbol : perpSymbols) {
-            String asset = perpSymbol.substring(0, perpSymbol.length() - PERP_SUFFIX.length());
-            String poloSpot = poloniexSpotSymbolByBase.get(asset);
-            String nbSpot = notbankSpotSymbolByBase.get(asset);
-            if (poloSpot == null && nbSpot == null) {
-                continue;
-            }
-            candidates.add(new Candidate(asset, perpSymbol, poloSpot, nbSpot));
-        }
+        List<CashAndCarryCandidates.Candidate> candidates = CashAndCarryCandidates.all(poloniex, notbank, yobit);
 
         Path outputPath = resolveOutputPath();
         Files.createDirectories(outputPath.getParent());
@@ -92,7 +68,7 @@ public class CashAndCarryWatcher {
             writer.flush();
 
             System.out.println("Registrando en: " + outputPath.toAbsolutePath());
-            System.out.println("Activos: " + candidates.size() + " (perpetuo en Poloniex + spot en Poloniex/NotBank)");
+            System.out.println("Activos: " + candidates.size() + " (perpetuo en Poloniex + spot en Poloniex/NotBank/YoBit)");
             System.out.println("Intervalo: " + CYCLE_INTERVAL_SECONDS + "s. Precio congelado (spot/perp, no funding) >= "
                 + STALE_AFTER_CYCLES + " ciclos se marca. Ctrl+C para parar (lo ya registrado queda guardado).");
             System.out.println();
@@ -107,20 +83,17 @@ public class CashAndCarryWatcher {
                 String ts = timestamp();
 
                 List<ParallelFetch.FetchTask<String, OrderBook>> spotTasks = new ArrayList<>();
-                for (Candidate c : candidates) {
-                    if (c.poloniexSpotSymbol() != null) {
-                        spotTasks.add(new ParallelFetch.FetchTask<>("Poloniex|" + c.poloniexSpotSymbol(), "Poloniex",
-                            () -> poloniex.fetchOrderBook(c.poloniexSpotSymbol())));
-                    }
-                    if (c.notbankSpotSymbol() != null) {
-                        spotTasks.add(new ParallelFetch.FetchTask<>("NotBank|" + c.notbankSpotSymbol(), "NotBank",
-                            () -> notbank.fetchOrderBook(c.notbankSpotSymbol())));
+                for (CashAndCarryCandidates.Candidate c : candidates) {
+                    for (CrossVenue v : c.spotVenues()) {
+                        spotTasks.add(new ParallelFetch.FetchTask<>(
+                            CashAndCarrySpread.bookKey(v.exchangeName(), v.market().symbol()), v.exchangeName(),
+                            () -> v.connector().fetchOrderBook(v.market().symbol())));
                     }
                 }
                 ParallelFetch.Outcome<String, OrderBook> spotOutcome = ParallelFetch.fetchAll(spotTasks);
 
                 List<ParallelFetch.FetchTask<String, PerpQuote>> perpTasks = new ArrayList<>();
-                for (Candidate c : candidates) {
+                for (CashAndCarryCandidates.Candidate c : candidates) {
                     perpTasks.add(new ParallelFetch.FetchTask<>(c.perpSymbol(), PERP_EXCHANGE,
                         () -> poloniex.fetchPerpQuote(c.perpSymbol())));
                 }
@@ -152,22 +125,17 @@ public class CashAndCarryWatcher {
                 }
 
                 int flagged = 0;
-                for (Candidate c : candidates) {
+                for (CashAndCarryCandidates.Candidate c : candidates) {
                     PerpQuote perpQuote = perpOutcome.results().get(c.perpSymbol());
                     if (perpQuote == null) {
                         continue;
                     }
                     List<CashAndCarrySpread.SpotCandidate> spotCandidates = new ArrayList<>();
-                    if (c.poloniexSpotSymbol() != null) {
-                        OrderBook book = spotOutcome.results().get("Poloniex|" + c.poloniexSpotSymbol());
+                    for (CrossVenue v : c.spotVenues()) {
+                        OrderBook book = spotOutcome.results().get(
+                            CashAndCarrySpread.bookKey(v.exchangeName(), v.market().symbol()));
                         if (book != null) {
-                            spotCandidates.add(new CashAndCarrySpread.SpotCandidate("Poloniex", book));
-                        }
-                    }
-                    if (c.notbankSpotSymbol() != null) {
-                        OrderBook book = spotOutcome.results().get("NotBank|" + c.notbankSpotSymbol());
-                        if (book != null) {
-                            spotCandidates.add(new CashAndCarrySpread.SpotCandidate("NotBank", book));
+                            spotCandidates.add(new CashAndCarrySpread.SpotCandidate(v.exchangeName(), book));
                         }
                     }
                     if (spotCandidates.isEmpty()) {

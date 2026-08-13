@@ -2,7 +2,16 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0019, cerrado)
+## Qué existe hoy (Sprint 0020, cerrado)
+
+Hipótesis 04 (cash-and-carry) suma YoBit como candidato de spot — antes solo competían Poloniex y NotBank. Medido en vivo antes de construir: de los 18 perpetuos de Poloniex, Buda no cubre ninguno en USDT (su universo es CLP/COP/PEN, 0 de 18) y YoBit cubre 6 (BTC, DOGE, ETH, LTC, TRX, XRP) — **por eso este sprint suma solo YoBit**; Buda queda backlog aparte porque sumarlo bien requeriría convertir CLP→USDT en vivo antes de comparar contra el perpetuo (que siempre es USDT), no un cambio chico.
+
+- `com.cryptobot.funding.CashAndCarryCandidates` (nuevo): reemplaza el descubrimiento hardcodeado a "exactamente Poloniex + NotBank" que tenían `CashAndCarryCheck`/`CashAndCarryWatcher` desde el Sprint 0015 (cada uno con su propio `record Candidate` de 2 campos fijos). `discover(perpSymbols, List<CrossVenue>)` (testeable sin HTTP) agrupa los mercados USDT por activo base y arma un candidato por perpetuo que tenga 1+ venue — `CrossVenue` (de `marketdata`, Sprint 0012/0017) suma acá su 3er consumidor real.
+- `CashAndCarrySpread.bookKey(exchange, symbol)`: mismo helper que ya tiene `CrossTriangleSpread`, evita repetir el armado de la key entre el fetch y el lookup.
+- `CashAndCarryCheck`/`CashAndCarryWatcher` quedan generalizados a N fuentes de spot sin tocar `CashAndCarrySpread.evaluate` (ya recibía `List<SpotCandidate>` genérico desde el Sprint 0015).
+- **Verificado en vivo**: BTC/DOGE/ETH/LTC/TRX/XRP pasaron de 2 a 3 venues (Poloniex, NotBank, YoBit), el resto de los 16 activos con candidato no cambió.
+
+## Qué existía en el Sprint 0019
 
 Nuevo paquete `com.cryptobot.report` — deja de analizarse a mano cada CSV largo. Los 5 formatos de watcher (`SpreadWatcher`/`TriangleWatcher`/`YobitTriangleWatcher`/`CrossTriangleWatcher`/`CashAndCarryWatcher`) comparten `timestamp` primero y `stale,flag,error` últimas tres, aunque el resto de columnas sea totalmente distinto — confirmado leyendo los 5 headers reales, no asumido. Una sola herramienta genérica por nombre de columna alcanza para los 5.
 
