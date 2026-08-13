@@ -100,6 +100,10 @@ public final class CashAndCarrySpread {
             annualizedFundingPct, entryFeesPct, breakevenPeriods));
     }
 
+    public static String bookKey(String exchangeName, String symbol) {
+        return exchangeName + "|" + symbol;
+    }
+
     private static BigDecimal percent(BigDecimal amount, BigDecimal base) {
         return amount.divide(base, 6, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
     }
