@@ -74,6 +74,7 @@ Cada sprint se agrupa bajo su etapa. El detalle de cada uno vive en su archivo; 
 | [`0023`](sprints/sprint_0023.md) | Conectar Bitfinex (6to exchange, hipótesis 01)                  | ✅ Cerrado      |
 | [`0024`](sprints/sprint_0024.md) | Funding rate cross-exchange (05), primer corte: Poloniex + Bitfinex | ✅ Cerrado  |
 | [`0025`](sprints/sprint_0025.md) | FundingCrossExchangeWatcher — monitoreo continuo de la hipótesis 05 | ✅ Cerrado  |
+| [`0026`](sprints/sprint_0026.md) | Dashboard web de solo lectura sobre los CSV de los watchers | ✅ Cerrado  |
 
 ### Estados
 

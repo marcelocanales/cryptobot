@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Cryptobot — Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #FBF3E7;
+    --card: #FFFFFF;
+    --ink: #4A3403;
+    --ink-soft: #8A7250;
+    --border: #E4D5B7;
+    --accent: #B7791F;
+    --accent-soft: #FFF3DA;
+    --good: #3F6B31;
+    --good-bg: #E7F2E1;
+    --mixed: #9C6B12;
+    --mixed-bg: #FBF0DC;
+    --noisy: #A33B2B;
+    --noisy-bg: #F7E4DF;
+    --mono-bg: #FFF8E1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.45;
+  }
+  .app { max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+  header h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header .subtitle { color: var(--ink-soft); margin: 0 0 22px; font-size: 0.92rem; }
+
+  nav.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+  nav.tabs button {
+    font: inherit;
+    font-size: 0.86rem;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--ink-soft);
+    padding: 7px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  nav.tabs button:hover { background: var(--accent-soft); color: var(--ink); }
+  nav.tabs button.active {
+    background: var(--accent);
+    color: #FFF8E9;
+    border-color: var(--accent);
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .toolbar select, .toolbar button {
+    font: inherit;
+    font-size: 0.86rem;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--ink);
+  }
+  .toolbar button { cursor: pointer; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .toolbar button:hover { background: var(--accent-soft); }
+  .toolbar .status { font-size: 0.82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+  section.card h2 {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin: 0 0 12px;
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .stat { text-align: left; }
+  .stat .value { font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 0.76rem; color: var(--ink-soft); }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .pill {
+    font-size: 0.76rem;
+    background: var(--mono-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  details { margin-top: 10px; }
+  details summary { cursor: pointer; font-size: 0.8rem; color: var(--accent); }
+  details .detail-list { font-size: 0.8rem; margin-top: 8px; color: var(--ink-soft); }
+  details .detail-list div { padding: 2px 0; font-variant-numeric: tabular-nums; }
+
+  .combo {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .combo .label-col { flex: 1 1 220px; min-width: 180px; }
+  .combo .label { font-weight: 600; font-size: 0.92rem; }
+  .combo .meta { font-size: 0.78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .combo .warn { color: var(--noisy); font-size: 0.76rem; margin-top: 2px; }
+
+  .badge {
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.good { background: var(--good-bg); color: var(--good); }
+  .badge.mixed { background: var(--mixed-bg); color: var(--mixed); }
+  .badge.noisy { background: var(--noisy-bg); color: var(--noisy); }
+
+  svg.spark { width: 160px; height: 36px; flex-shrink: 0; }
+  svg.spark polyline { fill: none; stroke: var(--accent); stroke-width: 2; }
+  svg.spark circle { fill: var(--accent); }
+
+  .empty { color: var(--ink-soft); font-size: 0.88rem; padding: 8px 0; }
+  .omitted-note { color: var(--ink-soft); font-size: 0.78rem; margin-top: 6px; }
+  .error-box {
+    background: var(--noisy-bg);
+    color: var(--noisy);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Cryptobot — Dashboard</h1>
+    <p class="subtitle">Vista de solo lectura sobre los CSV de los watchers, Sprint 0026. Cada archivo se relee del disco al pedirlo — no hay refresco automático.</p>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <div class="toolbar">
+    <select id="fileSelect"></select>
+    <button id="refreshBtn">Actualizar</button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <section class="card" id="healthCard">
+    <h2>Salud</h2>
+    <div id="healthBody" class="empty">Elegí un archivo.</div>
+  </section>
+
+  <section class="card" id="combosCard">
+    <h2>Combinaciones marcadas REVISAR, por frecuencia</h2>
+    <div id="combosBody" class="empty">—</div>
+  </section>
+</div>
+
+<script>
+const WATCHERS = [
+  { prefix: "spread-watch", label: "Spread (01)" },
+  { prefix: "triangle-watch", label: "Triangular Poloniex (02)" },
+  { prefix: "yobit-triangle-watch", label: "Triangular YoBit (02)" },
+  { prefix: "cross-triangle-watch", label: "Cross-exchange triangular (03)" },
+  { prefix: "cash-and-carry-watch", label: "Cash-and-carry (04)" },
+  { prefix: "funding-cross-exchange-watch", label: "Funding cross-exchange (05)" },
+];
+
+let filesByPrefix = {};
+let activePrefix = WATCHERS[0].prefix;
+
+const tabsEl = document.getElementById("tabs");
+const fileSelectEl = document.getElementById("fileSelect");
+const refreshBtnEl = document.getElementById("refreshBtn");
+const statusEl = document.getElementById("status");
+const healthBodyEl = document.getElementById("healthBody");
+const combosBodyEl = document.getElementById("combosBody");
+
+function buildTabs() {
+  tabsEl.innerHTML = "";
+  for (const w of WATCHERS) {
+    const btn = document.createElement("button");
+    btn.textContent = w.label;
+    btn.className = w.prefix === activePrefix ? "active" : "";
+    btn.addEventListener("click", () => {
+      activePrefix = w.prefix;
+      buildTabs();
+      populateFileSelect();
+      loadSelectedFile();
+    });
+    tabsEl.appendChild(btn);
+  }
+}
+
+function populateFileSelect() {
+  const files = filesByPrefix[activePrefix] || [];
+  fileSelectEl.innerHTML = "";
+  if (files.length === 0) {
+    const opt = document.createElement("option");
+    opt.textContent = "(sin archivos todavía)";
+    fileSelectEl.appendChild(opt);
+    fileSelectEl.disabled = true;
+    return;
+  }
+  fileSelectEl.disabled = false;
+  for (const f of files) {
+    const opt = document.createElement("option");
+    opt.value = f;
+    opt.textContent = f;
+    fileSelectEl.appendChild(opt);
+  }
+}
+
+async function refreshFileList() {
+  const res = await fetch("/api/files");
+  filesByPrefix = await res.json();
+}
+
+function loadSelectedFile() {
+  const file = fileSelectEl.value;
+  if (!file) {
+    healthBodyEl.innerHTML = '<div class="empty">No hay archivos para este watcher todavía.</div>';
+    combosBodyEl.innerHTML = '<div class="empty">—</div>';
+    return;
+  }
+  loadDashboard(file);
+}
+
+async function loadDashboard(file) {
+  statusEl.textContent = "Cargando " + file + "...";
+  const start = performance.now();
+  try {
+    const res = await fetch("/api/dashboard?file=" + encodeURIComponent(file));
+    const data = await res.json();
+    if (!res.ok) {
+      healthBodyEl.innerHTML = '<div class="error-box">' + escapeHtml(data.error || "Error desconocido") + "</div>";
+      combosBodyEl.innerHTML = "";
+      statusEl.textContent = "";
+      return;
+    }
+    renderHealth(data.health);
+    renderCombos(data.series);
+    const ms = Math.round(performance.now() - start);
+    statusEl.textContent = "Actualizado (" + ms + " ms)";
+  } catch (err) {
+    healthBodyEl.innerHTML = '<div class="error-box">No se pudo conectar con el servidor: ' + escapeHtml(String(err)) + "</div>";
+    statusEl.textContent = "";
+  }
+}
+
+function renderHealth(h) {
+  const errorPct = h.rowCount > 0 ? (100 * h.errorRowCount / h.rowCount).toFixed(1) : "0.0";
+  let html = '<div class="stat-grid">';
+  html += stat(h.rowCount.toLocaleString("es-CL"), "filas");
+  html += stat(h.cycleCount.toLocaleString("es-CL"), "ciclos");
+  html += stat(h.gapCount, "huecos de tiempo");
+  html += stat(h.errorRowCount + " (" + errorPct + "%)", "filas con error");
+  if (h.malformedRowCount > 0) {
+    html += stat(h.malformedRowCount, "filas mal formadas");
+  }
+  html += "</div>";
+
+  if (h.cycleStats) {
+    html += '<div class="pill-row">'
+      + pill("intervalo mediana: " + formatSeconds(h.cycleStats.medianSeconds))
+      + pill("min: " + formatSeconds(h.cycleStats.minSeconds))
+      + pill("max: " + formatSeconds(h.cycleStats.maxSeconds))
+      + "</div>";
+  }
+
+  const flagEntries = Object.entries(h.flagCounts || {});
+  if (flagEntries.length > 0) {
+    html += '<div class="pill-row">' + flagEntries.map(([k, v]) => pill(k + ": " + v)).join("") + "</div>";
+  }
+
+  if (Object.keys(h.errorMessageCounts || {}).length > 0) {
+    html += "<details><summary>Mensajes de error más frecuentes</summary><div class='detail-list'>"
+      + Object.entries(h.errorMessageCounts).map(([k, v]) => "<div>" + v + "x — " + escapeHtml(k) + "</div>").join("")
+      + (h.errorMessageOmittedCount > 0 ? '<div class="omitted-note">... y ' + h.errorMessageOmittedCount + " más</div>" : "")
+      + "</div></details>";
+  }
+
+  if (Object.keys(h.staleTokenCounts || {}).length > 0) {
+    html += "<details><summary>Símbolos/lados más congelados (stale)</summary><div class='detail-list'>"
+      + Object.entries(h.staleTokenCounts).map(([k, v]) => "<div>" + v + "x — " + escapeHtml(k) + "</div>").join("")
+      + (h.staleTokenOmittedCount > 0 ? '<div class="omitted-note">... y ' + h.staleTokenOmittedCount + " más</div>" : "")
+      + "</div></details>";
+  }
+
+  healthBodyEl.innerHTML = html;
+}
+
+function renderCombos(series) {
+  const combos = series.combinations || [];
+  if (combos.length === 0) {
+    combosBodyEl.innerHTML = '<div class="empty">Ninguna combinación marcada REVISAR todavía en este archivo.</div>';
+    return;
+  }
+  let html = "";
+  for (const c of combos) {
+    const cls = consistencyClass(c.consistencyPct);
+    const clsLabel = cls === "good" ? "persistente" : cls === "mixed" ? "mixto" : "probable ruido";
+    html += '<div class="combo">';
+    html += '<div class="label-col">';
+    html += '<div class="label">' + escapeHtml(c.label) + "</div>";
+    html += '<div class="meta">' + c.flaggedCount + " marcado de " + c.appearances + " apariciones ("
+      + c.consistencyPct.toFixed(1) + "%)</div>";
+    if (c.possibleTickerCollision) {
+      html += '<div class="warn">⚠ magnitud extrema — posible choque de ticker, revisar antes de confiar</div>';
+    }
+    html += "</div>";
+    html += '<span class="badge ' + cls + '">' + clsLabel + "</span>";
+    html += sparkline(c.series);
+    html += "</div>";
+  }
+  if (series.omittedCount > 0) {
+    html += '<div class="omitted-note">Mostrando las ' + combos.length + ' combinaciones más frecuentes — '
+      + series.omittedCount + " quedaron afuera.</div>";
+  }
+  combosBodyEl.innerHTML = html;
+}
+
+function consistencyClass(pct) {
+  if (pct >= 70) return "good";
+  if (pct >= 30) return "mixed";
+  return "noisy";
+}
+
+function sparkline(points) {
+  if (!points || points.length === 0) return "";
+  const w = 160, h = 36, pad = 4;
+  if (points.length === 1) {
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" class="spark"><circle cx="' + (w / 2) + '" cy="' + (h / 2) + '" r="3"/></svg>';
+  }
+  const values = points.map((p) => parseFloat(p.value));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const coords = values.map((v, i) => {
+    const x = pad + (i / (values.length - 1)) * (w - 2 * pad);
+    const y = pad + (1 - (v - min) / range) * (h - 2 * pad);
+    return x.toFixed(1) + "," + y.toFixed(1);
+  });
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" class="spark"><polyline points="' + coords.join(" ") + '"/></svg>';
+}
+
+function stat(value, label) {
+  return '<div class="stat"><div class="value">' + value + '</div><div class="label">' + label + "</div></div>";
+}
+function pill(text) {
+  return '<span class="pill">' + escapeHtml(text) + "</span>";
+}
+function formatSeconds(total) {
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return h + "h" + m + "m" + s + "s";
+  if (m > 0) return m + "m" + s + "s";
+  return s + "s";
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+refreshBtnEl.addEventListener("click", loadSelectedFile);
+fileSelectEl.addEventListener("change", loadSelectedFile);
+
+(async function init() {
+  buildTabs();
+  statusEl.textContent = "Cargando lista de archivos...";
+  await refreshFileList();
+  statusEl.textContent = "";
+  populateFileSelect();
+  loadSelectedFile();
+})();
+</script>
+</body>
+</html>

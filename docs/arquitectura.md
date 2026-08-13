@@ -2,7 +2,19 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0025, cerrado)
+## Qué existe hoy (Sprint 0026, cerrado)
+
+Nuevo paquete `com.cryptobot.dashboard` — visor web local de solo lectura sobre los CSV que ya escriben los 6 watchers, pedido por Marcelo para revisar "todo lo encontrado" de una corrida larga sin tener que leer los CSV a mano. Primer código web/HTTP del proyecto (hasta ahora todo era CLI puro).
+
+- `WatchHealthAnalyzer` (Sprint 0019) se reusa **sin cambios** para la sección de salud — sigue siendo genérico por nombre de columna, 7mo formato distinto que confirma el diseño sin tocarlo.
+- `com.cryptobot.dashboard.WatcherFormats`: registro estático de los 6 formatos (columnas de identidad + métrica principal por watcher) — lo único que `WatchHealthAnalyzer` no cubre a propósito.
+- `com.cryptobot.dashboard.CombinationSeriesAnalyzer`: agrupa las filas por combinación (activo+exchanges, o triángulo+dirección) y calcula, por combinación, `consistencyPct = veces marcada REVISAR / veces que apareció` — la misma pregunta que la sesión respondió a mano esa noche para distinguir señal real (ZEC, ~100%) de ruido (MANA, ~11%). Marca con un aviso informativo (no descarta datos) cualquier combinación con `|métrica| > 50%` — mismo umbral que `CrossTriangleCheck`/`CrossTriangleWatcher` usan desde el Sprint 0012, aplicado acá como alerta visual de posible choque de ticker.
+- `com.cryptobot.dashboard.DashboardServer`: `com.sun.net.httpserver.HttpServer` del JDK (sin dependencia nueva), puerto 8089 en `127.0.0.1`. Rutas: `/` (visor), `/api/files` (lista de CSV por watcher), `/api/dashboard?file=` (salud + combinaciones de un archivo, releído en cada request — sin caché, sin refresco automático). JSON armado a mano contra `Map`/`List` (no serialización automática de records) para no sumar `jackson-datatype-jsr310`.
+- `src/main/resources/dashboard/index.html`: visor autocontenido, HTML/CSS/JS vanilla sin librerías externas.
+- **Verificado en vivo contra la corrida nocturna, con los watchers todavía escribiendo**: `spread-watch` (~200.000 filas) respondió en ~0,3s por request; el caso ZEC/MANA se reprodujo automáticamente sin ajuste manual; `TOP_N` de combinaciones subió de 20 a 50 tras medir que el archivo más grande solo tuvo 33 combinaciones totales (20 tapaba justo los casos de baja consistencia); puerto 8080 tuvo que cambiarse a 8089 por un conflicto real con otro proyecto de Marcelo corriendo en esa máquina.
+- **Fuera de alcance**: auto-refresh/WebSockets, autenticación, empaquetado standalone. No commiteado a git sin autorización explícita — regla del proyecto.
+
+## Qué existía en el Sprint 0025
 
 `FundingCrossExchangeWatcher` — versión continua de `FundingCrossExchangeCheck`, mismo salto que `CashAndCarryWatcher` fue para `CashAndCarryCheck` (Sprint 0015 → 0016). Descubre los activos con perpetuo en 2+ exchanges una sola vez al arrancar, corre en loop de 30s con `ParallelFetch`, y reusa `StalenessTracker` — pero solo en las patas de **precio** (bid del corto, ask del largo), no en el funding rate: ese cambia por diseño cada 8h, marcarlo "congelado" dentro de esa ventana sería ruido, no una señal de dato malo (mismo criterio que `CashAndCarryWatcher`). CSV de 12 columnas (`timestamp,asset,short_exchange,short_annualized_pct,long_exchange,long_annualized_pct,annualized_differential_pct,entry_fees_pct,breakeven_hours,stale,flag,error`) — `flag=REVISAR` en cualquier diferencial positivo (mismo criterio que `TriangleWatcher`/`CrossTriangleWatcher`, sin umbral inventado).
 
