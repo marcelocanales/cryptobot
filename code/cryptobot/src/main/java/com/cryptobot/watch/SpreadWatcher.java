@@ -15,6 +15,7 @@ import com.cryptobot.marketdata.yobit.YobitConnector;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -52,6 +53,16 @@ public class SpreadWatcher {
     // vivo, son órdenes abandonadas. 10 ciclos de 30s = 5 minutos sin
     // moverse -> se marca como sospechoso (no se descarta, se marca).
     private static final int STALE_AFTER_CYCLES = 10;
+
+    // Un bruto > 50% no es una oportunidad real — es la misma señal de choque
+    // de tickers entre exchanges confirmada en vivo en el Sprint 0012 (BOB:
+    // token cripto en Poloniex, Boliviano fiat en NotBank), guardia que
+    // CrossTriangleWatcher tiene desde entonces pero que este watcher nunca
+    // recibió. Confirmado que hacía falta acá también en la corrida nocturna
+    // del 2026-08-13: "TAO" en YoBit (token oscuro, ~0,00000025 BTC) vs.
+    // "TAO" en CoinEx (Bittensor, ~0,0031 BTC) — mismo código, activos
+    // distintos, reportado como "neto 118.620%" sin ningún guardia.
+    private static final BigDecimal IMPLAUSIBLE_GROSS_PCT = BigDecimal.valueOf(50);
 
     public static void main(String[] args) throws IOException {
         var poloniex = new PoloniexConnector();
@@ -176,23 +187,27 @@ public class SpreadWatcher {
         if (sellStale) staleParts.add(sellExchange + ":bid");
         String staleLabel = String.join("|", staleParts);
 
+        boolean implausible = r.grossPct().abs().compareTo(IMPLAUSIBLE_GROSS_PCT) > 0;
+        String flag = implausible ? "IMPLAUSIBLE" : r.isPositive() ? "REVISAR" : "";
+
         writer.write(String.join(",",
             ts, assetLabel, buyExchange, sellExchange,
             r.buyAt().price().toPlainString(), r.sellAt().price().toPlainString(),
             r.grossPct().toPlainString(), r.feesPct().toPlainString(), r.netPct().toPlainString(),
             staleLabel,
-            r.isPositive() ? "REVISAR" : "",
+            flag,
             ""
         ));
         writer.newLine();
 
-        if (r.isPositive()) {
+        if (!implausible && r.isPositive()) {
             String staleNote = staleParts.isEmpty() ? "" : " [OJO: " + staleLabel + " congelado]";
             System.out.println("  >> " + assetLabel + ": comprar " + buyExchange + " / vender " + sellExchange
                 + " -> neto " + r.netPct() + "% (bruto " + r.grossPct() + "%, fees " + r.feesPct() + "%)" + staleNote);
+            return 1;
         }
 
-        return r.isPositive() ? 1 : 0;
+        return 0;
     }
 
     private static String timestamp() {

@@ -2,7 +2,17 @@
 
 **Única fuente de verdad de la arquitectura *actual* de Cryptobot.** Este documento es **vivo**: refleja siempre el "ahora". Cada sprint que cambia la estructura lo actualiza, y además muestra su **delta** en su propio `sprints/sprint_NNNN.md`. Así la foto completa vive en un solo lugar (sin duplicar ni desincronizar — mismo criterio que el [roadmap](roadmap.md)) y cada sprint cuenta su evolución. La convención está en [metodologia.md](metodologia.md).
 
-## Qué existe hoy (Sprint 0025, cerrado)
+## Qué existe hoy (Sprint 0027, cerrado)
+
+`SpreadWatcher` gana el mismo guardia de implausibilidad que `CrossTriangleWatcher` tiene desde el Sprint 0012: `IMPLAUSIBLE_GROSS_PCT = 50` — cualquier `|gross_pct| > 50%` se marca `flag=IMPLAUSIBLE` en vez de `REVISAR`, aunque el neto sea positivo. Cambio acotado a `writeDirection` (`com.cryptobot.watch.SpreadWatcher`): calcula `implausible` igual que `CrossTriangleWatcher.writeTriangle`, y tanto la impresión por consola como el conteo de "combinaciones marcadas" pasan a excluir los casos implausibles (antes contaban como señal).
+
+**Motivación, no hipotética**: la corrida nocturna del 2026-08-13 (8h20m, ~1,2M filas) mostró 13 de las ~33 combinaciones alguna vez marcadas eran choques de ticker (TAO, BOB, XCN, VELO, BABYDOGE, MOG, TRUMP, US, DGB, ARB, TIA, PIVX, XCH) — el ejemplo original que motivó este ítem del backlog (TAO: token oscuro en YoBit vs. Bittensor en CoinEx, "neto 118.620%") era solo uno de muchos, no un caso aislado.
+
+**Verificado en vivo**: corrida corta de `SpreadWatcher` (2 ciclos) confirmó TAO/BTC, BOB/USDT, TRUMP/USDT y XCN/USDT saliendo con `flag=IMPLAUSIBLE` y su `gross_pct` real (ej. TAO/BTC 115.953%) en vez de `REVISAR` — mientras ZEC/BTC, ZEC/USDT y ETC/BTC (señal real, magnitudes de un dígito) siguen flageando `REVISAR` sin cambios.
+
+**Fuera de alcance**: la solución de fondo (mapeo de identidad real de activo, no solo comparar el ticker) sigue en el backlog — este guardia tapa el síntoma con el mismo criterio ya aceptado para `CrossTriangleWatcher`, no lo resuelve de raíz.
+
+## Qué existía en el Sprint 0025
 
 `FundingCrossExchangeWatcher` — versión continua de `FundingCrossExchangeCheck`, mismo salto que `CashAndCarryWatcher` fue para `CashAndCarryCheck` (Sprint 0015 → 0016). Descubre los activos con perpetuo en 2+ exchanges una sola vez al arrancar, corre en loop de 30s con `ParallelFetch`, y reusa `StalenessTracker` — pero solo en las patas de **precio** (bid del corto, ask del largo), no en el funding rate: ese cambia por diseño cada 8h, marcarlo "congelado" dentro de esa ventana sería ruido, no una señal de dato malo (mismo criterio que `CashAndCarryWatcher`). CSV de 12 columnas (`timestamp,asset,short_exchange,short_annualized_pct,long_exchange,long_annualized_pct,annualized_differential_pct,entry_fees_pct,breakeven_hours,stale,flag,error`) — `flag=REVISAR` en cualquier diferencial positivo (mismo criterio que `TriangleWatcher`/`CrossTriangleWatcher`, sin umbral inventado).
 
