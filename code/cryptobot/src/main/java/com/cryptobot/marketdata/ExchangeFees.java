@@ -15,10 +15,17 @@ import java.util.Set;
 public final class ExchangeFees {
 
     // Poloniex, Buda y YoBit cobran la misma fee sin importar el par.
+    // CoinEx es distinto (Sprint 0021): la fee real varía POR MERCADO, no
+    // por exchange ni por moneda de cotización (751 mercados al 0,30%, 242
+    // al 0,20%, 6 al 0,10%, confirmado en vivo contra GET /v2/spot/market)
+    // — acá se usa 0,20% como aproximación, confirmada en vivo para los
+    // majors que de hecho se usan vía TrackedAssets (BTCUSDT/ETHUSDT/
+    // LTCUSDT), no exacta para cualquier par exótico. Ver docs/entorno.md.
     private static final Map<String, BigDecimal> FLAT_TAKER_FEE = Map.of(
         "Poloniex", new BigDecimal("0.0020"),
         "Buda", new BigDecimal("0.0080"),
-        "YoBit", new BigDecimal("0.0020")
+        "YoBit", new BigDecimal("0.0020"),
+        "CoinEx", new BigDecimal("0.0020")
     );
 
     // NotBank: fee real (no estimada), confirmada en vivo contra su propia
