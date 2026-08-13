@@ -50,12 +50,12 @@ class CashAndCarrySpreadTest {
 
         // basis: (50100 - 50000) / 50000 * 100 = 0.2%
         assertEquals(0, new BigDecimal("0.200000").compareTo(r.basisPct()));
-        // fees de entrada: (0,20% + 0,075%) = 0,275%
-        assertEquals(0, new BigDecimal("0.2750").compareTo(r.entryFeesPct()));
+        // fees de entrada: (0,20% + 0,06%) = 0,26%
+        assertEquals(0, new BigDecimal("0.2600").compareTo(r.entryFeesPct()));
         // funding anualizado: 0,02% * (365*24/8) = 0,02% * 1095 = 21.9%
         assertEquals(0, new BigDecimal("21.9").compareTo(r.annualizedFundingPct().setScale(1, RoundingMode.HALF_UP)));
-        // breakeven: max(0, 0.275 - 0.2) / 0.02 = 3.75 períodos
-        assertEquals(0, new BigDecimal("3.75").compareTo(r.breakevenPeriodsIfPositive().orElseThrow()));
+        // breakeven: max(0, 0.26 - 0.2) / 0.02 = 3 períodos
+        assertEquals(0, new BigDecimal("3").compareTo(r.breakevenPeriodsIfPositive().orElseThrow()));
     }
 
     @Test

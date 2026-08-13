@@ -40,14 +40,15 @@ public final class ExchangeFees {
 
     // Fee de taker de PERPETUOS — mercado distinto al spot, con su propia fee
     // incluso en el mismo exchange (Sprint 0015). Hoy solo Poloniex tiene
-    // perpetuos entre los 4 exchanges conectados (confirmado en vivo: NotBank
-    // 0 instrumentos no-spot, Buda y YoBit solo spot). A diferencia de las
-    // fees de spot, esta no sale de una API pública de Poloniex — no expone
-    // un endpoint de fees de futuros — sale de contenido de soporte/anuncios
-    // del propio exchange. Pendiente confirmar contra una fuente más dura si
-    // aparece — ver docs/entorno.md.
+    // perpetuos entre los exchanges conectados (confirmado en vivo: NotBank
+    // 0 instrumentos no-spot, Buda y YoBit solo spot). Confirmado el
+    // 2026-08-13 contra la cuenta real de Marcelo (Trading Tier Status,
+    // VIP 0, USDT-M Perpetual Futures) — 0,06%, no el 0,075% que se había
+    // usado antes por no existir un endpoint público de fees de futuros
+    // (se sacó de contenido de soporte/anuncios del exchange, sin poder
+    // confirmarlo contra una fuente más dura hasta ahora).
     private static final Map<String, BigDecimal> PERP_TAKER_FEE = Map.of(
-        "Poloniex", new BigDecimal("0.00075")
+        "Poloniex", new BigDecimal("0.0006")
     );
 
     private ExchangeFees() {
