@@ -16,6 +16,7 @@ class ExchangeFeesTest {
         assertEquals(new BigDecimal("0.0080"), ExchangeFees.takerFee("Buda", "CLP"));
         assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("YoBit", "USDT"));
         assertEquals(new BigDecimal("0.0020"), ExchangeFees.takerFee("CoinEx", "USDT"));
+        assertEquals(new BigDecimal("0.0000"), ExchangeFees.takerFee("Bitfinex", "USDT"));
     }
 
     @Test
